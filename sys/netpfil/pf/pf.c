@@ -5981,13 +5981,18 @@ done:
                 pd.act.qid = r->qid;
         }
         if (action == PF_PASS && pd.act.qid) {
-		if (pqid || (pd.tos & IPTOS_LOWDELAY))
-                        pd.pf_mtag->qid = pd.act.pqid;
-		else
-                        pd.pf_mtag->qid = pd.act.qid;
-		/* add hints for ecn */
-		pd.pf_mtag->hdr = h;
-
+		if (pd.pf_mtag == NULL &&
+		    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
+			action = PF_DROP;
+		} else {
+			if (pqid || (pd.tos & IPTOS_LOWDELAY)) {
+				pd.pf_mtag->qid = pd.act.pqid;
+			} else {
+				pd.pf_mtag->qid = pd.act.qid;
+			}
+			/* add hints for ecn */
+			pd.pf_mtag->hdr = h;
+		}
 	}
 #endif /* ALTQ */
 
@@ -6425,12 +6430,18 @@ done:
                  pd.act.qid = r->qid;
          }
         if (action == PF_PASS && pd.act.qid) {
-		if (pd.tos & IPTOS_LOWDELAY)
-                        pd.pf_mtag->qid = pd.act.pqid;
-		else
-                        pd.pf_mtag->qid = pd.act.qid;
-		/* add hints for ecn */
-		pd.pf_mtag->hdr = h;
+		if (pd.pf_mtag == NULL &&
+		    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
+			action = PF_DROP;
+		} else {
+			if (pd.tos & IPTOS_LOWDELAY) {
+				pd.pf_mtag->qid = pd.act.pqid;
+			} else {
+				pd.pf_mtag->qid = pd.act.qid;
+			}
+			/* add hints for ecn */
+			pd.pf_mtag->hdr = h;
+		}
 	}
 #endif /* ALTQ */
 
