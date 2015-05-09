@@ -1716,7 +1716,7 @@ relock_DIOCKILLSTATES:
 		int                      killed = 0;
 		u_int			 i;
                     
-		for (i = 0; i <= V_pf_hashmask; i++) {
+		for (i = 0; i <= pf_hashmask; i++) {
 			struct pf_idhash *ih = &V_pf_idhash[i];
 
 relock_DIOCKILLSCHEDULE:
