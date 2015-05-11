@@ -2403,6 +2403,7 @@ filter_opt	: USER uids {
 		}
 		| IEEE8021QPCP STRING {
 			u_int pcp;
+			u_long pcpl;
 
 			/*
 			* XXXRW: More complete set of operations, similar to
@@ -2424,8 +2425,11 @@ filter_opt	: USER uids {
 				pcp = IEEE8021Q_PCP_IC;
 			else if (!strcmp($2, "nc"))
 				pcp = IEEE8021Q_PCP_NC;
-			else if (atoul($2, &pcp) == -1) /* int argument  */
+			else if (atoul($2, &pcpl) == -1)
 				pcp = 8 ; /* flag bad argument  */
+			else
+				pcp = pcpl;
+
 			if (pcp > 7) {
 				yyerror("invalid ieee8021q_pcp value %s", $2);
 				free($2);
@@ -2438,6 +2442,7 @@ filter_opt	: USER uids {
 		}
 		| IEEE8021QSETPCP STRING {
 			u_int pcp;
+			u_long pcpl;
 
 			/*
 			* XXXRW: More complete set of operations, similar to
@@ -2459,8 +2464,10 @@ filter_opt	: USER uids {
 				pcp = IEEE8021Q_PCP_IC;
 			else if (!strcmp($2, "nc"))
 				pcp = IEEE8021Q_PCP_NC;
-			else if (atoul($2, &pcp) == -1) /* int argument  */
+			else if (atoul($2, &pcpl) == -1)
 				pcp = 8;                /* flag bad argument */
+			else
+				pcp = pcpl;
 			if (pcp > 7) {
 				yyerror("invalid ieee8021q_setpcp value %s",
 					$2);
