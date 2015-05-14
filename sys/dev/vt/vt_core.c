@@ -166,6 +166,8 @@ static void vt_update_static(void *);
 #ifndef SC_NO_CUTPASTE
 static void vt_mouse_paste(void);
 #endif
+static void vt_suspend_handler(void *priv);
+static void vt_resume_handler(void *priv);
 
 SET_DECLARE(vt_drv_set, struct vt_driver);
 
@@ -1016,7 +1018,7 @@ vt_determine_colors(term_char_t c, int cursor,
 int
 vt_is_cursor_in_area(const struct vt_device *vd, const term_rect_t *area)
 {
-	unsigned int mx, my, x1, y1, x2, y2;
+	unsigned int mx, my;
 
 	/*
 	 * We use the cursor position saved during the current refresh,
@@ -1025,18 +1027,12 @@ vt_is_cursor_in_area(const struct vt_device *vd, const term_rect_t *area)
 	mx = vd->vd_mx_drawn + vd->vd_curwindow->vw_draw_area.tr_begin.tp_col;
 	my = vd->vd_my_drawn + vd->vd_curwindow->vw_draw_area.tr_begin.tp_row;
 
-	x1 = area->tr_begin.tp_col;
-	y1 = area->tr_begin.tp_row;
-	x2 = area->tr_end.tp_col;
-	y2 = area->tr_end.tp_row;
-
-	if (((mx >= x1 && x2 - 1 >= mx) ||
-	     (mx < x1 && mx + vd->vd_mcursor->width >= x1)) &&
-	    ((my >= y1 && y2 - 1 >= my) ||
-	     (my < y1 && my + vd->vd_mcursor->height >= y1)))
-		return (1);
-
-	return (0);
+	if (mx >= area->tr_end.tp_col ||
+	    mx + vd->vd_mcursor->width <= area->tr_begin.tp_col ||
+	    my >= area->tr_end.tp_row ||
+	    my + vd->vd_mcursor->height <= area->tr_begin.tp_row)
+		return (0);
+	return (1);
 }
 
 static void
@@ -2507,6 +2503,7 @@ vt_upgrade(struct vt_device *vd)
 {
 	struct vt_window *vw;
 	unsigned int i;
+	int register_handlers;
 
 	if (!vty_enabled(VTY_VT))
 		return;
@@ -2535,6 +2532,7 @@ vt_upgrade(struct vt_device *vd)
 	if (vd->vd_curwindow == NULL)
 		vd->vd_curwindow = vd->vd_windows[VT_CONSWINDOW];
 
+	register_handlers = 0;
 	if (!(vd->vd_flags & VDF_ASYNC)) {
 		/* Attach keyboard. */
 		vt_allocate_keyboard(vd);
@@ -2546,12 +2544,21 @@ vt_upgrade(struct vt_device *vd)
 		vd->vd_flags |= VDF_ASYNC;
 		callout_reset(&vd->vd_timer, hz / VT_TIMERFREQ, vt_timer, vd);
 		vd->vd_timer_armed = 1;
+		register_handlers = 1;
 	}
 
 	VT_UNLOCK(vd);
 
 	/* Refill settings with new sizes. */
 	vt_resize(vd);
+
+	if (register_handlers) {
+		/* Register suspend/resume handlers. */
+		EVENTHANDLER_REGISTER(power_suspend_early, vt_suspend_handler,
+		    vd, EVENTHANDLER_PRI_ANY);
+		EVENTHANDLER_REGISTER(power_resume, vt_resume_handler, vd,
+		    EVENTHANDLER_PRI_ANY);
+	}
 }
 
 static void
@@ -2649,26 +2656,54 @@ vt_allocate(struct vt_driver *drv, void *softc)
 	termcn_cnregister(vd->vd_windows[VT_CONSWINDOW]->vw_terminal);
 }
 
-void
-vt_suspend()
+static void
+vt_suspend_handler(void *priv)
 {
+	struct vt_device *vd;
+
+	vd = priv;
+	if (vd->vd_driver != NULL && vd->vd_driver->vd_suspend != NULL)
+		vd->vd_driver->vd_suspend(vd);
+}
+
+static void
+vt_resume_handler(void *priv)
+{
+	struct vt_device *vd;
+
+	vd = priv;
+	if (vd->vd_driver != NULL && vd->vd_driver->vd_resume != NULL)
+		vd->vd_driver->vd_resume(vd);
+}
+
+void
+vt_suspend(struct vt_device *vd)
+{
+	int error;
 
 	if (vt_suspendswitch == 0)
 		return;
 	/* Save current window. */
-	main_vd->vd_savedwindow = main_vd->vd_curwindow;
+	vd->vd_savedwindow = vd->vd_curwindow;
 	/* Ask holding process to free window and switch to console window */
-	vt_proc_window_switch(main_vd->vd_windows[VT_CONSWINDOW]);
+	vt_proc_window_switch(vd->vd_windows[VT_CONSWINDOW]);
+
+	/* Wait for the window switch to complete. */
+	error = 0;
+	VT_LOCK(vd);
+	while (vd->vd_curwindow != vd->vd_windows[VT_CONSWINDOW] && error == 0)
+		error = cv_wait_sig(&vd->vd_winswitch, &vd->vd_lock);
+	VT_UNLOCK(vd);
 }
 
 void
-vt_resume()
+vt_resume(struct vt_device *vd)
 {
 
 	if (vt_suspendswitch == 0)
 		return;
 	/* Switch back to saved window */
-	if (main_vd->vd_savedwindow != NULL)
-		vt_proc_window_switch(main_vd->vd_savedwindow);
-	main_vd->vd_savedwindow = NULL;
+	if (vd->vd_savedwindow != NULL)
+		vt_proc_window_switch(vd->vd_savedwindow);
+	vd->vd_savedwindow = NULL;
 }
