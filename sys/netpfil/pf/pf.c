@@ -5984,15 +5984,16 @@ done:
 		if (pd.pf_mtag == NULL &&
 		    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
 			action = PF_DROP;
+			REASON_SET(&reason, PFRES_MEMORY);
 		} else {
-			if (pqid || (pd.tos & IPTOS_LOWDELAY)) {
-				pd.pf_mtag->qid = pd.act.pqid;
-			} else {
-				pd.pf_mtag->qid = pd.act.qid;
-			}
-			/* add hints for ecn */
+			if (pqid || (pd.tos & IPTOS_LOWDELAY))
+				pd.pf_mtag->qid = r->pqid;
+			else
+				pd.pf_mtag->qid = r->qid;
+			/* Add hints for ecn. */
 			pd.pf_mtag->hdr = h;
 		}
+
 	}
 #endif /* ALTQ */
 
@@ -6030,9 +6031,11 @@ done:
 					log = 1;
 					DPFPRINTF(PF_DEBUG_MISC,
 					    ("pf: failed to allocate tag\n"));
+				} else {
+					pd.pf_mtag->flags |=
+					    PF_FASTFWD_OURS_PRESENT;
+					m->m_flags &= ~M_FASTFWD_OURS;
 				}
-				pd.pf_mtag->flags |= PF_FASTFWD_OURS_PRESENT;
-				m->m_flags &= ~M_FASTFWD_OURS;
 			}
 			ip_divert_ptr(*m0, dir ==  PF_IN ? DIR_IN : DIR_OUT);
 			*m0 = NULL;
@@ -6433,13 +6436,13 @@ done:
 		if (pd.pf_mtag == NULL &&
 		    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
 			action = PF_DROP;
+			REASON_SET(&reason, PFRES_MEMORY);
 		} else {
-			if (pd.tos & IPTOS_LOWDELAY) {
-				pd.pf_mtag->qid = pd.act.pqid;
-			} else {
-				pd.pf_mtag->qid = pd.act.qid;
-			}
-			/* add hints for ecn */
+			if (pd.tos & IPTOS_LOWDELAY)
+				pd.pf_mtag->qid = r->pqid;
+			else
+				pd.pf_mtag->qid = r->qid;
+			/* Add hints for ecn. */
 			pd.pf_mtag->hdr = h;
 		}
 	}
