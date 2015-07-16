@@ -28,14 +28,7 @@
 #
 # Basic script to build crude unit tests.
 #
-# Diff-reduction checking between Yarrow and fortuna is done like so:
-#
-# $ diff -u -B <(sed -e 's/yarrow/wombat/g' \
-#                    -e 's/YARROW/WOMBAT/g' yarrow.c) \
-#              <(sed -e 's/fortuna/wombat/g' \
-#                    -e 's/FORTUNA/WOMBAT/g' fortuna.c) | less
-#
-cc -g -O0 -pthread -DRANDOM_DEBUG \
+cc -g -O0 -pthread -DRANDOM_DEBUG -DRANDOM_YARROW \
 	-I../.. -lstdthreads -Wall \
 	unit_test.c \
 	yarrow.c \
@@ -46,7 +39,7 @@ cc -g -O0 -pthread -DRANDOM_DEBUG \
 	../../crypto/sha2/sha256c.c \
 	-lz \
 	-o yunit_test
-cc -g -O0 -pthread -DRANDOM_DEBUG \
+cc -g -O0 -pthread -DRANDOM_DEBUG -DRANDOM_FORTUNA \
 	-I../.. -lstdthreads -Wall \
 	unit_test.c \
 	fortuna.c \

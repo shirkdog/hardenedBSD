@@ -34,9 +34,7 @@
 #error "Random unit tests cannot be compiled into the kernel."
 #endif
 
-#include <sys/types.h>
-#include <inttypes.h>
-#include <stdint.h>
+void random_adaptor_unblock(void);
 
 #if defined(clang) && __has_builtin(__builtin_readcyclecounter)
 #define	rdtsc __builtin_readcyclecounter
@@ -63,7 +61,6 @@ get_cyclecount(void)
 }
 
 #define	HARVESTSIZE	2
-#define RANDOM_BLOCKSIZE	16
 
 enum random_entropy_source {
 	RANDOM_START = 0,
