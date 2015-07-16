@@ -160,8 +160,8 @@ int
 read_random_uio(struct uio *uio, bool nonblock)
 {
 	uint8_t *random_buf;
-	int error;
-	ssize_t read_len, total_read, c;
+	int c, error;
+	ssize_t nbytes;
 
 	random_buf = malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
 	random_alg_context.ra_pre_read();
@@ -182,24 +182,14 @@ read_random_uio(struct uio *uio, bool nonblock)
 		/* XXX: FIX!! Next line as an atomic operation? */
 		read_rate += (uio->uio_resid + sizeof(uint32_t))/sizeof(uint32_t);
 #endif
-		total_read = 0;
+		nbytes = uio->uio_resid;
 		while (uio->uio_resid && !error) {
-			read_len = uio->uio_resid;
-			/*
-			 * Belt-and-braces.
-			 * Round up the read length to a crypto block size multiple,
-			 * which is what the underlying generator is expecting.
-			 * See the random_buf size requirements in the Yarrow/Fortuna code.
-			 */
-			read_len += RANDOM_BLOCKSIZE;
-			read_len -= read_len % RANDOM_BLOCKSIZE;
-			read_len = MIN(read_len, PAGE_SIZE);
-			random_alg_context.ra_read(random_buf, read_len);
-			c = MIN(uio->uio_resid, read_len);
+			c = MIN(uio->uio_resid, PAGE_SIZE);
+			/* See the random_buf size requirements in the Yarrow/Fortuna code */
+			random_alg_context.ra_read(random_buf, c);
 			error = uiomove(random_buf, c, uio);
-			total_read += c;
 		}
-		if (total_read != uio->uio_resid && (error == ERESTART || error == EINTR) )
+		if (nbytes != uio->uio_resid && (error == ERESTART || error == EINTR) )
 			/* Return partial read, not error. */
 			error = 0;
 	}
@@ -229,13 +219,6 @@ read_random(void *random_buf, u_int len)
 		read_rate += (len + sizeof(uint32_t))/sizeof(uint32_t);
 #endif
 		read_len = len;
-		/*
-		 * Belt-and-braces.
-		 * Round up the read length to a crypto block size multiple,
-		 * which is what the underlying generator is expecting.
-		 */
-		read_len += RANDOM_BLOCKSIZE;
-		read_len -= read_len % RANDOM_BLOCKSIZE;
 		total_read = 0;
 		while (read_len) {
 			c = MIN(read_len, PAGE_SIZE);
