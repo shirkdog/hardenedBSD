@@ -36,17 +36,16 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/bio.h>
-#include <sys/buf.h>
-#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
-#include <sys/random.h>
+#include <sys/bio.h>
+#include <sys/buf.h>
+#include <sys/vnode.h>
+#include <sys/malloc.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
-#include <sys/stat.h>
 #include <sys/vmmeter.h>
-#include <sys/vnode.h>
+#include <sys/stat.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -144,17 +143,12 @@ loop:
 		softdep_update_inodeblock(ip, bp, waitfor);
 	else if (ip->i_effnlink != ip->i_nlink)
 		panic("ffs_update: bad link cnt");
-	if (ip->i_ump->um_fstype == UFS1) {
+	if (ip->i_ump->um_fstype == UFS1)
 		*((struct ufs1_dinode *)bp->b_data +
 		    ino_to_fsbo(fs, ip->i_number)) = *ip->i_din1;
-		/* XXX: FIX? The entropy here is desirable, but the harvesting may be expensive */
-		random_harvest_queue(&(ip->i_din1), sizeof(ip->i_din1), 1, RANDOM_FS_ATIME);
-	} else {
+	else
 		*((struct ufs2_dinode *)bp->b_data +
 		    ino_to_fsbo(fs, ip->i_number)) = *ip->i_din2;
-		/* XXX: FIX? The entropy here is desirable, but the harvesting may be expensive */
-		random_harvest_queue(&(ip->i_din2), sizeof(ip->i_din2), 1, RANDOM_FS_ATIME);
-	}
 	if (waitfor && !DOINGASYNC(vp))
 		error = bwrite(bp);
 	else if (vm_page_count_severe() || buf_dirty_count_severe()) {

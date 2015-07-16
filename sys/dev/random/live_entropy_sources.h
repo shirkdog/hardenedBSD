@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2015 Mark R V Murray
+ * Copyright (c) 2013 Arthur Mesh <arthurmesh@gmail.com>
+ * Copyright (c) 2013 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,50 +24,36 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef SYS_DEV_RANDOM_LIVE_ENTROPY_SOURCES_H_INCLUDED
+#define SYS_DEV_RANDOM_LIVE_ENTROPY_SOURCES_H_INCLUDED
 
-#include <sys/param.h>
-#include <sys/malloc.h>
-#include <sys/random.h>
-#include <sys/systm.h>
+typedef u_int random_live_read_func_t(void *, u_int);
 
-#include <dev/random/randomdev.h>
-
-#include "opt_random.h"
-
-#if defined(RANDOM_DUMMY) || defined(RANDOM_YARROW)
-#error "Cannot define any of RANDOM_DUMMY and RANDOM_YARROW without 'device random'"
-#endif
-
-/*-
- * Dummy "not even here" device. Stub out all routines that the kernel would need.
+/*
+ * Live entropy source is a source of entropy that can provide
+ * specified or approximate amount of entropy immediately upon request or within
+ * an acceptable amount of time.
  */
+struct live_entropy_source {
+	const char			*les_ident;
+	enum random_entropy_source	 les_source;
+	random_live_read_func_t		*les_read;
+};
 
-/* ARGSUSED */
-u_int
-read_random(void *random_buf __unused, u_int len __unused)
-{
+struct live_entropy_sources {
+	LIST_ENTRY(live_entropy_sources) lles_entries;	/* list of providers */
+	struct live_entropy_source	*lles_rsource;	/* associated random adaptor */
+};
 
-	return (0);
-}
+extern struct mtx live_mtx;
 
-/* ARGSUSED */
-void
-random_harvest_direct(const void *entropy __unused, u_int count __unused, u_int bits __unused, enum random_entropy_source origin __unused)
-{
-}
+void live_entropy_sources_init(void);
+void live_entropy_sources_deinit(void);
+void live_entropy_source_register(struct live_entropy_source *);
+void live_entropy_source_deregister(struct live_entropy_source *);
+void live_entropy_sources_feed(void);
 
-/* ARGSUSED */
-void
-random_harvest_queue(const void *entropy __unused, u_int count __unused, u_int bits __unused, enum random_entropy_source origin __unused)
-{
-}
-
-/* ARGSUSED */
-void
-random_harvest_fast(const void *entropy __unused, u_int count __unused, u_int bits __unused, enum random_entropy_source origin __unused)
-{
-}
+#endif /* SYS_DEV_RANDOM_LIVE_ENTROPY_SOURCES_H_INCLUDED */

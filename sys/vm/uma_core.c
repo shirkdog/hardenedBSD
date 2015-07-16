@@ -2135,8 +2135,11 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 	int lockfail;
 	int cpu;
 
-	/* XXX: FIX? The entropy here is desirable, but the harvesting may be expensive */
-	random_harvest_fast(&zone, sizeof(zone), 1, RANDOM_FAST);
+#if 0
+	/* XXX: FIX!! Do not enable this in CURRENT!! MarkM */
+	/* The entropy here is desirable, but the harvesting is expensive */
+	random_harvest(&(zone->uz_name), sizeof(void *), 1, RANDOM_UMA_ALLOC);
+#endif
 
 	/* This is the fast path allocation */
 #ifdef UMA_DEBUG_ALLOC_1
@@ -2168,6 +2171,11 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 			    	zone->uz_fini(item, zone->uz_size);
 				return (NULL);
 			}
+#if 0
+			/* XXX: FIX!! Do not enable this in CURRENT!! MarkM */
+			/* The entropy here is desirable, but the harvesting is expensive */
+			random_harvest(&item, sizeof(void *), 1, RANDOM_UMA_ALLOC);
+#endif
 			return (item);
 		}
 		/* This is unfortunate but should not be fatal. */
@@ -2210,6 +2218,11 @@ zalloc_start:
 #endif
 		if (flags & M_ZERO)
 			uma_zero_item(item, zone);
+#if 0
+		/* XXX: FIX!! Do not enable this in CURRENT!! MarkM */
+		/* The entropy here is desirable, but the harvesting is expensive */
+		random_harvest(&item, sizeof(void *), 1, RANDOM_UMA_ALLOC);
+#endif
 		return (item);
 	}
 
@@ -2330,6 +2343,11 @@ zalloc_start:
 zalloc_item:
 	item = zone_alloc_item(zone, udata, flags);
 
+#if 0
+	/* XXX: FIX!! Do not enable this in CURRENT!! MarkM */
+	/* The entropy here is desirable, but the harvesting is expensive */
+	random_harvest(&item, sizeof(void *), 1, RANDOM_UMA_ALLOC);
+#endif
 	return (item);
 }
 
@@ -2677,8 +2695,18 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	int lockfail;
 	int cpu;
 
-	/* XXX: FIX? The entropy here is desirable, but the harvesting may be expensive */
-	random_harvest_fast(&zone, sizeof(zone), 1, RANDOM_FAST);
+#if 0
+	/* XXX: FIX!! Do not enable this in CURRENT!! MarkM */
+	/* The entropy here is desirable, but the harvesting is expensive */
+	struct entropy {
+		const void *uz_name;
+		const void *item;
+	} entropy;
+
+	entropy.uz_name = zone->uz_name;
+	entropy.item = item;
+	random_harvest(&entropy, sizeof(struct entropy), 2, RANDOM_UMA_ALLOC);
+#endif
 
 #ifdef UMA_DEBUG_ALLOC_1
 	printf("Freeing item %p to %s(%p)\n", item, zone->uz_name, zone);
