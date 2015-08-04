@@ -204,10 +204,6 @@ static Obj_Entry obj_rtld;	/* The dynamic linker shared object */
 static unsigned int obj_count;	/* Number of objects in obj_list */
 static unsigned int obj_loads;	/* Number of objects in obj_list */
 
-#ifdef HARDENEDBSD
-static Elf_Word pax_flags = 0;	/* PaX / HardenedBSD flags */
-#endif
-
 static Objlist list_global =	/* Objects dlopened with RTLD_GLOBAL */
   STAILQ_HEAD_INITIALIZER(list_global);
 static Objlist list_main =	/* Objects loaded at program startup */
@@ -405,14 +401,6 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     environ = env;
     main_argc = argc;
     main_argv = argv;
-
-#ifdef HARDENEDBSD
-    /* Load PaX flags */
-    if (aux_info[AT_PAXFLAGS] != NULL) {
-        pax_flags = aux_info[AT_PAXFLAGS]->a_un.a_val;
-        aux_info[AT_PAXFLAGS]->a_un.a_val = 0;
-    }
-#endif
 
     if (aux_info[AT_CANARY] != NULL &&
 	aux_info[AT_CANARY]->a_un.a_ptr != NULL) {
@@ -2154,9 +2142,7 @@ load_needed_objects(Obj_Entry *first, int flags)
 
     for (obj = first;  obj != NULL;  obj = obj->next) {
 #ifdef HARDENEDBSD
-        if ((pax_flags & (PAX_NOTE_NOSHLIBRANDOM | PAX_NOTE_SHLIBRANDOM)) !=
-	  PAX_NOTE_NOSHLIBRANDOM)
-            randomize_neededs(obj, flags);
+	randomize_neededs(obj, flags);
 #endif
 	if (process_needed(obj, obj->needed, flags) == -1)
 	    return (-1);
