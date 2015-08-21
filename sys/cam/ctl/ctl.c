@@ -1183,8 +1183,6 @@ ctl_init(void)
 		ctl_pool_free(other_pool);
 		return (error);
 	}
-	if (bootverbose)
-		printf("ctl: CAM Target Layer loaded\n");
 
 	/*
 	 * Initialize the ioctl front end.
@@ -1267,9 +1265,6 @@ ctl_shutdown(void)
 
 	free(control_softc, M_DEVBUF);
 	control_softc = NULL;
-
-	if (bootverbose)
-		printf("ctl: CAM Target Layer unloaded\n");
 }
 
 static int
@@ -5509,9 +5504,11 @@ ctl_sync_cache(struct ctl_scsiio *ctsio)
 {
 	struct ctl_lun *lun;
 	struct ctl_softc *softc;
+	struct ctl_lba_len_flags *lbalen;
 	uint64_t starting_lba;
 	uint32_t block_count;
 	int retval;
+	uint8_t byte2;
 
 	CTL_DEBUG_PRINT(("ctl_sync_cache\n"));
 
@@ -5526,6 +5523,7 @@ ctl_sync_cache(struct ctl_scsiio *ctsio)
 
 		starting_lba = scsi_4btoul(cdb->begin_lba);
 		block_count = scsi_2btoul(cdb->lb_count);
+		byte2 = cdb->byte2;
 		break;
 	}
 	case SYNCHRONIZE_CACHE_16: {
@@ -5534,6 +5532,7 @@ ctl_sync_cache(struct ctl_scsiio *ctsio)
 
 		starting_lba = scsi_8btou64(cdb->begin_lba);
 		block_count = scsi_4btoul(cdb->lb_count);
+		byte2 = cdb->byte2;
 		break;
 	}
 	default:
@@ -5563,6 +5562,11 @@ ctl_sync_cache(struct ctl_scsiio *ctsio)
 		ctl_done((union ctl_io *)ctsio);
 		goto bailout;
 	}
+
+	lbalen = (struct ctl_lba_len_flags *)&ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	lbalen->lba = starting_lba;
+	lbalen->len = block_count;
+	lbalen->flags = byte2;
 
 	/*
 	 * Check to see whether we're configured to send the SYNCHRONIZE
@@ -13635,7 +13639,7 @@ ctl_process_done(union ctl_io *io)
 	case CTL_IO_SCSI:
 		break;
 	case CTL_IO_TASK:
-		if (bootverbose || (ctl_debug & CTL_DEBUG_INFO))
+		if (ctl_debug & CTL_DEBUG_INFO)
 			ctl_io_error_print(io, NULL);
 		if (io->io_hdr.flags & CTL_FLAG_FROM_OTHER_SC)
 			ctl_free_io(io);
@@ -13742,27 +13746,10 @@ bailout:
 
 	/*
 	 * If enabled, print command error status.
-	 * We don't print UAs unless debugging was enabled explicitly.
 	 */
-	do {
-		if ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)
-			break;
-		if (!bootverbose && (ctl_debug & CTL_DEBUG_INFO) == 0)
-			break;
-		if ((ctl_debug & CTL_DEBUG_INFO) == 0 &&
-		    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SCSI_ERROR) &&
-		     (io->scsiio.scsi_status == SCSI_STATUS_CHECK_COND)) {
-			int error_code, sense_key, asc, ascq;
-
-			scsi_extract_sense_len(&io->scsiio.sense_data,
-			    io->scsiio.sense_len, &error_code, &sense_key,
-			    &asc, &ascq, /*show_errors*/ 0);
-			if (sense_key == SSD_KEY_UNIT_ATTENTION)
-				break;
-		}
-
+	if ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_SUCCESS &&
+	    (ctl_debug & CTL_DEBUG_INFO) != 0)
 		ctl_io_error_print(io, NULL);
-	} while (0);
 
 	/*
 	 * Tell the FETD or the other shelf controller we're done with this
