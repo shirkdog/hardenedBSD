@@ -56,7 +56,9 @@ CFLAGS+= -g
 CTFFLAGS+= -g
 .endif
 
+.if !defined(NO_RELRO)
 LDFLAGS+=	-Wl,-z,relro  -Wl,-z,now
+.endif
 
 .include <bsd.libnames.mk>
 

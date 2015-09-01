@@ -18,7 +18,9 @@ LDFLAGS+= -pie
 .endif
 .endif
 
+.if !defined(NO_RELRO)
 LDFLAGS+=	-Wl,-z,relro  -Wl,-z,now
+.endif
 
 .if ${MK_ASSERT_DEBUG} == "no"
 CFLAGS+= -DNDEBUG
