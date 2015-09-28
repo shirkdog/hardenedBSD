@@ -776,13 +776,16 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 	    (flags & LLE_STATIC)) {
 		struct in_ifaddr *eia;
 
+		/*
+		 * XXXME: add fib-aware in_localip.
+		 * We definitely don't want to switch between
+		 * prefixes in different fibs.
+		 */
 		eia = in_localip_more(target);
 
 		if (eia != NULL) {
-			int fibnum = target->ia_ifp->if_fib;
-
 			error = ifa_switch_loopback_route((struct ifaddr *)eia,
-			    (struct sockaddr *)&target->ia_addr, fibnum);
+			    (struct sockaddr *)&target->ia_addr);
 			ifa_free(&eia->ia_ifa);
 		} else {
 			error = ifa_del_loopback_route((struct ifaddr *)target,
@@ -1330,6 +1333,8 @@ in_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 			arpc.rtm.rtm_flags |= (RTF_HOST | RTF_LLDATA);
 			if (lle->la_flags & LLE_STATIC)
 				arpc.rtm.rtm_flags |= RTF_STATIC;
+			if (lle->la_flags & LLE_IFADDR)
+				arpc.rtm.rtm_flags |= RTF_PINNED;
 			arpc.rtm.rtm_index = ifp->if_index;
 			error = SYSCTL_OUT(wr, &arpc, sizeof(arpc));
 
