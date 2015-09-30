@@ -15,4 +15,6 @@ LDADD=	-lunbound -lldns -lutil -lssl -lcrypto -lpthread
 USEPRIVATELIB=	ldns
 MAN=	unbound-control.8
 
+WANTS_PIE=	yes
+
 .include <bsd.prog.mk>
