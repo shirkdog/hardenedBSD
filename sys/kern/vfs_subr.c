@@ -2661,10 +2661,6 @@ loop:
 		 * If FORCECLOSE is set, forcibly close the vnode.
 		 */
 		if (vp->v_usecount == 0 || (flags & FORCECLOSE)) {
-			VNASSERT(vp->v_usecount == 0 ||
-			    vp->v_op != &devfs_specops ||
-			    (vp->v_type != VCHR && vp->v_type != VBLK), vp,
-			    ("device VNODE %p is FORCECLOSED", vp));
 			vgonel(vp);
 		} else {
 			busy++;
@@ -2802,7 +2798,7 @@ unlock:
 /*
  * vgone, with the vp interlock held.
  */
-void
+static void
 vgonel(struct vnode *vp)
 {
 	struct thread *td;
@@ -3840,17 +3836,20 @@ vn_isdisk(struct vnode *vp, int *errp)
 {
 	int error;
 
+	if (vp->v_type != VCHR) {
+		error = ENOTBLK;
+		goto out;
+	}
 	error = 0;
 	dev_lock();
-	if (vp->v_type != VCHR)
-		error = ENOTBLK;
-	else if (vp->v_rdev == NULL)
+	if (vp->v_rdev == NULL)
 		error = ENXIO;
 	else if (vp->v_rdev->si_devsw == NULL)
 		error = ENXIO;
 	else if (!(vp->v_rdev->si_devsw->d_flags & D_DISK))
 		error = ENOTBLK;
 	dev_unlock();
+out:
 	if (errp != NULL)
 		*errp = error;
 	return (error == 0);
