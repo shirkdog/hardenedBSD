@@ -242,7 +242,9 @@ pax_elf(struct image_params *imgp, uint32_t mode)
 		return (ENOEXEC);
 	}
 
+	PROC_LOCK(imgp->proc);
 	imgp->proc->p_pax = flags;
+	PROC_UNLOCK(imgp->proc);
 
 	/*
 	 * if we enable/disable features with secadm, print out a warning

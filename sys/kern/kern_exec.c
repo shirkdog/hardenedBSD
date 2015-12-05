@@ -379,6 +379,9 @@ do_execve(td, args, mac_p)
 	struct pmckern_procexec pe;
 #endif
 	static const char fexecv_proc_title[] = "(fexecv)";
+#ifdef PAX
+	uint32_t pax_settings = 0;
+#endif
 
 	imgp = &image_params;
 
@@ -403,14 +406,20 @@ do_execve(td, args, mac_p)
 	imgp->attr = &attr;
 	imgp->args = args;
 
+#ifdef PAX_HBSDCONTROL
+	/*
+	 * XXXOP: interpreted?
+	 */
+	error = pax_hbsdcontrol_parse_fsea_flags(curthread, args->fname, &pax_settings);
+	if (error)
+		goto exec_fail;
+#endif
+
 #ifdef PAX
-	PROC_LOCK(imgp->proc);
-	error = pax_elf(imgp, 0);
+	error = pax_elf(imgp, pax_settings);
 	if (error) {
-		PROC_UNLOCK(imgp->proc);
 		goto exec_fail;
 	}
-	PROC_UNLOCK(imgp->proc);
 #endif
 
 #ifdef MAC
