@@ -137,12 +137,10 @@ pax_get_flags(struct proc *p, uint32_t *flags)
 #ifdef HBSD_DEBUG
 	struct thread *td;
 
-	PROC_LOCK(p);
 	FOREACH_THREAD_IN_PROC(p, td) {
 		KASSERT(td->td_pax == p->p_pax, ("%s: td->td_pax != p->p_pax",
 		    __func__));
 	}
-	PROC_UNLOCK(p);
 #endif
 
 	*flags = p->p_pax;
@@ -161,14 +159,12 @@ pax_get_flags_td(struct thread *td, uint32_t *flags)
 
 	p = td->td_proc;
 
-	PROC_LOCK(p);
 	FOREACH_THREAD_IN_PROC(p, td0) {
 		KASSERT(td0->td_proc == p,
 		    ("%s: td0->td_proc != p", __func__));
 		KASSERT(td0->td_pax == p->p_pax, ("%s: td0->td_pax != p->p_pax",
 		    __func__));
 	}
-	PROC_UNLOCK(p);
 #endif
 
 	*flags = td->td_pax;
