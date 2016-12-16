@@ -30,6 +30,14 @@
 #	@(#)newvers.sh	8.1 (Berkeley) 4/20/94
 # $FreeBSD$
 
+# Command line options:
+#
+#     -r               Reproducible build.  Do not embed directory names, user
+#                      names, time stamps or other dynamic information into
+#                      the output file.  This is intended to allow two builds
+#                      done at different times and even by different people on
+#                      different hosts to produce identical output.
+
 TYPE="FreeBSD"
 REVISION="12.0"
 BRANCH="CURRENT"
@@ -251,14 +259,34 @@ if [ -n "$hg_cmd" ] ; then
 	fi
 fi
 
+include_metadata=true
+while getopts r opt; do
+	case "$opt" in
+	r)
+		include_metadata=
+		;;
+	esac
+done
+shift $((OPTIND - 1))
+
 if [ -n "${HBSD_EXTRA}" ] ; then
 	hbsdv=" [${HBSD_EXTRA}]"
+else
+	hbsdv=" "
+fi
+
+if [ -z "${include_metadata}" ]; then
+	VERINFO="${VERSION}${hbsdv}${svn}${git}${hg}${p4version}"
+	VERSTR="${VERINFO}\\n"
+else
+	VERINFO="${VERSION} #${v}${hbsdv}${svn}${git}${hg}${p4version}: ${t}"
+	VERSTR="${VERINFO}\\n    ${u}@${h}:${d}\\n"
 fi
 
 cat << EOF > vers.c
 $COPYRIGHT
-#define SCCSSTR "@(#)${VERSION} #${v}${hbsdv}${svn}${git}${hg}${p4version}: ${t}"
-#define VERSTR "${VERSION} #${v}${hbsdv}${svn}${git}${hg}${p4version}: ${t}\\n    ${u}@${h}:${d}\\n"
+#define SCCSSTR "@(#)${VERINFO}"
+#define VERSTR "${VERSTR}"
 #define RELSTR "${RELEASE}"
 
 char sccs[sizeof(SCCSSTR) > 128 ? sizeof(SCCSSTR) : 128] = SCCSSTR;
