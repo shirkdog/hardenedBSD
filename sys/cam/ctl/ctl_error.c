@@ -83,8 +83,7 @@ ctl_set_sense_data_va(struct scsi_sense_data *sense_data, void *lunptr,
 		 * sense if the LUN exists and descriptor sense is turned
 		 * on for that LUN.
 		 */
-		if ((lun != NULL)
-		 && (lun->flags & CTL_LUN_SENSE_DESC))
+		if ((lun != NULL) && (lun->MODE_CTRL.rlec & SCP_DSENSE))
 			sense_format = SSD_TYPE_DESC;
 		else
 			sense_format = SSD_TYPE_FIXED;
@@ -367,7 +366,7 @@ ctl_set_ua(struct ctl_scsiio *ctsio, int asc, int ascq)
 }
 
 static void
-ctl_ua_to_acsq(struct ctl_lun *lun, ctl_ua_type ua_to_build, int *asc,
+ctl_ua_to_ascq(struct ctl_lun *lun, ctl_ua_type ua_to_build, int *asc,
     int *ascq, ctl_ua_type *ua_to_clear, uint8_t **info)
 {
 
@@ -461,6 +460,11 @@ ctl_ua_to_acsq(struct ctl_lun *lun, ctl_ua_type ua_to_build, int *asc,
 		*asc = 0x28;
 		*ascq = 0x00;
 		break;
+	case CTL_UA_IE:
+		/* Informational exception */
+		*asc = lun->ie_asc;
+		*ascq = lun->ie_ascq;
+		break;
 	default:
 		panic("%s: Unknown UA %x", __func__, ua_to_build);
 	}
@@ -488,7 +492,7 @@ ctl_build_qae(struct ctl_lun *lun, uint32_t initidx, uint8_t *resp)
 	ua_to_build = (1 << (ffs(ua) - 1));
 	ua_to_clear = ua_to_build;
 	info = NULL;
-	ctl_ua_to_acsq(lun, ua_to_build, &asc, &ascq, &ua_to_clear, &info);
+	ctl_ua_to_ascq(lun, ua_to_build, &asc, &ascq, &ua_to_clear, &info);
 
 	resp[0] = SSD_KEY_UNIT_ATTENTION;
 	if (ua_to_build == ua)
@@ -533,7 +537,7 @@ ctl_build_ua(struct ctl_lun *lun, uint32_t initidx,
 	ua_to_build = (1 << (ffs(ua[i]) - 1));
 	ua_to_clear = ua_to_build;
 	info = NULL;
-	ctl_ua_to_acsq(lun, ua_to_build, &asc, &ascq, &ua_to_clear, &info);
+	ctl_ua_to_ascq(lun, ua_to_build, &asc, &ascq, &ua_to_clear, &info);
 
 	ctl_set_sense_data(sense, lun, sense_format, /*current_error*/ 1,
 	    /*sense_key*/ SSD_KEY_UNIT_ATTENTION, asc, ascq,
