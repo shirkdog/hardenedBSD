@@ -195,7 +195,6 @@ __DEFAULT_NO_OPTIONS = \
     OFED \
     OPENLDAP \
     PORTSNAP \
-    RCS \
     REPRODUCIBLE_BUILD \
     SHARED_TOOLCHAIN \
     SORT_THREADS \
@@ -426,6 +425,21 @@ MK_CLANG_FULL:= no
 .endif
 
 #
+# MK_* options whose default value depends on another option.
+#
+.for vv in \
+    GSSAPI/KERBEROS \
+    MAN_UTILS/MAN
+.if defined(WITH_${vv:H})
+MK_${vv:H}:=	yes
+.elif defined(WITHOUT_${vv:H})
+MK_${vv:H}:=	no
+.else
+MK_${vv:H}:=	${MK_${vv:T}}
+.endif
+.endfor
+
+#
 # Set defaults for the MK_*_SUPPORT variables.
 #
 
@@ -449,21 +463,6 @@ MK_CLANG_FULL:= no
 MK_${var}_SUPPORT:= no
 .else
 MK_${var}_SUPPORT:= yes
-.endif
-.endfor
-
-#
-# MK_* options whose default value depends on another option.
-#
-.for vv in \
-    GSSAPI/KERBEROS \
-    MAN_UTILS/MAN
-.if defined(WITH_${vv:H})
-MK_${vv:H}:=	yes
-.elif defined(WITHOUT_${vv:H})
-MK_${vv:H}:=	no
-.else
-MK_${vv:H}:=	${MK_${vv:T}}
 .endif
 .endfor
 
