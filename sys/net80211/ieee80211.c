@@ -70,6 +70,8 @@ const char *ieee80211_phymode_name[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_QUARTER]  = "quarter",
 	[IEEE80211_MODE_11NA]	  = "11na",
 	[IEEE80211_MODE_11NG]	  = "11ng",
+	[IEEE80211_MODE_VHT_2GHZ]	  = "11acg",
+	[IEEE80211_MODE_VHT_5GHZ]	  = "11ac",
 };
 /* map ieee80211_opmode to the corresponding capability bit */
 const int ieee80211_opcap[IEEE80211_OPMODE_MAX] = {
@@ -90,6 +92,7 @@ const uint8_t ieee80211broadcastaddr[IEEE80211_ADDR_LEN] =
 static	void ieee80211_syncflag_locked(struct ieee80211com *ic, int flag);
 static	void ieee80211_syncflag_ht_locked(struct ieee80211com *ic, int flag);
 static	void ieee80211_syncflag_ext_locked(struct ieee80211com *ic, int flag);
+static	void ieee80211_syncflag_vht_locked(struct ieee80211com *ic, int flag);
 static	int ieee80211_media_setup(struct ieee80211com *ic,
 		struct ifmedia *media, int caps, int addsta,
 		ifm_change_cb_t media_change, ifm_stat_cb_t media_stat);
@@ -180,6 +183,10 @@ ieee80211_chan_init(struct ieee80211com *ic)
 			setbit(ic->ic_modecaps, IEEE80211_MODE_11NA);
 		if (IEEE80211_IS_CHAN_HTG(c))
 			setbit(ic->ic_modecaps, IEEE80211_MODE_11NG);
+		if (IEEE80211_IS_CHAN_VHTA(c))
+			setbit(ic->ic_modecaps, IEEE80211_MODE_VHT_5GHZ);
+		if (IEEE80211_IS_CHAN_VHTG(c))
+			setbit(ic->ic_modecaps, IEEE80211_MODE_VHT_2GHZ);
 	}
 	/* initialize candidate channels to all available */
 	memcpy(ic->ic_chan_active, ic->ic_chan_avail,
@@ -207,6 +214,8 @@ ieee80211_chan_init(struct ieee80211com *ic)
 	DEFAULTRATES(IEEE80211_MODE_QUARTER,	 ieee80211_rateset_quarter);
 	DEFAULTRATES(IEEE80211_MODE_11NA,	 ieee80211_rateset_11a);
 	DEFAULTRATES(IEEE80211_MODE_11NG,	 ieee80211_rateset_11g);
+	DEFAULTRATES(IEEE80211_MODE_VHT_2GHZ,	 ieee80211_rateset_11g);
+	DEFAULTRATES(IEEE80211_MODE_VHT_5GHZ,	 ieee80211_rateset_11a);
 
 	/*
 	 * Setup required information to fill the mcsset field, if driver did
@@ -652,6 +661,12 @@ ieee80211_vap_attach(struct ieee80211vap *vap, ifm_change_cb_t media_change,
 	ieee80211_syncflag_locked(ic, IEEE80211_F_BURST);
 	ieee80211_syncflag_ht_locked(ic, IEEE80211_FHT_HT);
 	ieee80211_syncflag_ht_locked(ic, IEEE80211_FHT_USEHT40);
+
+	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_VHT);
+	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT40);
+	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT80);
+	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT80P80);
+	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT160);
 	IEEE80211_UNLOCK(ic);
 
 	return 1;
@@ -699,6 +714,13 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	ieee80211_syncflag_locked(ic, IEEE80211_F_BURST);
 	ieee80211_syncflag_ht_locked(ic, IEEE80211_FHT_HT);
 	ieee80211_syncflag_ht_locked(ic, IEEE80211_FHT_USEHT40);
+
+	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_VHT);
+	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT40);
+	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT80);
+	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT80P80);
+	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT160);
+
 	/* NB: this handles the bpfdetach done below */
 	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_BPF);
 	if (vap->iv_ifflags & IFF_PROMISC)
@@ -849,6 +871,46 @@ ieee80211_syncflag_ht(struct ieee80211vap *vap, int flag)
 	} else
 		vap->iv_flags_ht |= flag;
 	ieee80211_syncflag_ht_locked(ic, flag);
+	IEEE80211_UNLOCK(ic);
+}
+
+/*
+ * Synchronize flags_vht bit state in the com structure
+ * according to the state of all vap's.  This is used,
+ * for example, to handle state changes via ioctls.
+ */
+static void
+ieee80211_syncflag_vht_locked(struct ieee80211com *ic, int flag)
+{
+	struct ieee80211vap *vap;
+	int bit;
+
+	IEEE80211_LOCK_ASSERT(ic);
+
+	bit = 0;
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
+		if (vap->iv_flags_vht & flag) {
+			bit = 1;
+			break;
+		}
+	if (bit)
+		ic->ic_flags_vht |= flag;
+	else
+		ic->ic_flags_vht &= ~flag;
+}
+
+void
+ieee80211_syncflag_vht(struct ieee80211vap *vap, int flag)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+
+	IEEE80211_LOCK(ic);
+	if (flag < 0) {
+		flag = -flag;
+		vap->iv_flags_vht &= ~flag;
+	} else
+		vap->iv_flags_vht |= flag;
+	ieee80211_syncflag_vht_locked(ic, flag);
 	IEEE80211_UNLOCK(ic);
 }
 
@@ -1438,6 +1500,8 @@ addmedia(struct ifmedia *media, int caps, int addsta, int mode, int mword)
 	    [IEEE80211_MODE_QUARTER]	= IFM_IEEE80211_11A,	/* XXX */
 	    [IEEE80211_MODE_11NA]	= IFM_IEEE80211_11NA,
 	    [IEEE80211_MODE_11NG]	= IFM_IEEE80211_11NG,
+	    [IEEE80211_MODE_VHT_2GHZ]	= IFM_IEEE80211_VHT2G,
+	    [IEEE80211_MODE_VHT_5GHZ]	= IFM_IEEE80211_VHT5G,
 	};
 	u_int mopt;
 
@@ -1550,6 +1614,19 @@ ieee80211_media_setup(struct ieee80211com *ic,
 		if (rate > maxrate)
 			maxrate = rate;
 	}
+
+	/*
+	 * Add VHT media.
+	 */
+	for (; mode <= IEEE80211_MODE_VHT_5GHZ; mode++) {
+		if (isclr(ic->ic_modecaps, mode))
+			continue;
+		addmedia(media, caps, addsta, mode, IFM_AUTO);
+		addmedia(media, caps, addsta, mode, IFM_IEEE80211_VHT);
+
+		/* XXX TODO: VHT maxrate */
+	}
+
 	return maxrate;
 }
 
@@ -1829,7 +1906,11 @@ enum ieee80211_phymode
 ieee80211_chan2mode(const struct ieee80211_channel *chan)
 {
 
-	if (IEEE80211_IS_CHAN_HTA(chan))
+	if (IEEE80211_IS_CHAN_VHT_2GHZ(chan))
+		return IEEE80211_MODE_VHT_2GHZ;
+	else if (IEEE80211_IS_CHAN_VHT_5GHZ(chan))
+		return IEEE80211_MODE_VHT_5GHZ;
+	else if (IEEE80211_IS_CHAN_HTA(chan))
 		return IEEE80211_MODE_11NA;
 	else if (IEEE80211_IS_CHAN_HTG(chan))
 		return IEEE80211_MODE_11NG;
