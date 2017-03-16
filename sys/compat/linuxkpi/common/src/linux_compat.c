@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <linux/vmalloc.h>
 #include <linux/netdevice.h>
 #include <linux/timer.h>
-#include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
@@ -93,7 +92,6 @@ struct device linux_root_device;
 struct class linux_class_misc;
 struct list_head pci_drivers;
 struct list_head pci_devices;
-struct net init_net;
 spinlock_t pci_lock;
 
 unsigned long linux_timer_hz_mask;
@@ -1000,6 +998,8 @@ linux_timer_callback_wrapper(void *context)
 {
 	struct timer_list *timer;
 
+	linux_set_current(curthread);
+
 	timer = context;
 	timer->function(timer->data);
 }
@@ -1162,50 +1162,6 @@ linux_completion_done(struct completion *c)
 		isdone = 0;
 	sleepq_release(c);
 	return (isdone);
-}
-
-void
-linux_delayed_work_fn(void *arg)
-{
-	struct delayed_work *work;
-
-	work = arg;
-	taskqueue_enqueue(work->work.taskqueue, &work->work.work_task);
-}
-
-void
-linux_work_fn(void *context, int pending)
-{
-	struct work_struct *work;
-
-	work = context;
-	work->fn(work);
-}
-
-void
-linux_flush_fn(void *context, int pending)
-{
-}
-
-struct workqueue_struct *
-linux_create_workqueue_common(const char *name, int cpus)
-{
-	struct workqueue_struct *wq;
-
-	wq = kmalloc(sizeof(*wq), M_WAITOK);
-	wq->taskqueue = taskqueue_create(name, M_WAITOK,
-	    taskqueue_thread_enqueue,  &wq->taskqueue);
-	atomic_set(&wq->draining, 0);
-	taskqueue_start_threads(&wq->taskqueue, cpus, PWAIT, "%s", name);
-
-	return (wq);
-}
-
-void
-destroy_workqueue(struct workqueue_struct *wq)
-{
-	taskqueue_free(wq->taskqueue);
-	kfree(wq);
 }
 
 static void
@@ -1387,6 +1343,8 @@ void
 linux_irq_handler(void *ent)
 {
 	struct irq_ent *irqe;
+
+	linux_set_current(curthread);
 
 	irqe = ent;
 	irqe->handler(irqe->irq, irqe->arg);
