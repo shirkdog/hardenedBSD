@@ -521,8 +521,6 @@ rxd_info_zero(if_rxd_info_t ri)
 #define MAX_SINGLE_PACKET_FRACTION 12
 #define IF_BAD_DMA (bus_addr_t)-1
 
-static int enable_msix = 1;
-
 #define CTX_ACTIVE(ctx) ((if_getdrvflags((ctx)->ifc_ifp) & IFF_DRV_RUNNING))
 
 #define CTX_LOCK_INIT(_sc, _name)  mtx_init(&(_sc)->ifc_mtx, _name, "iflib ctx lock", MTX_DEF)
@@ -1441,15 +1439,17 @@ _iflib_irq_alloc(if_ctx_t ctx, if_irq_t irq, int rid,
 	driver_filter_t filter, driver_intr_t handler, void *arg,
 				 char *name)
 {
-	int rc;
+	int rc, flags;
 	struct resource *res;
-	void *tag;
+	void *tag = NULL;
 	device_t dev = ctx->ifc_dev;
 
+	flags = RF_ACTIVE;
+	if (ctx->ifc_flags & IFC_LEGACY)
+		flags |= RF_SHAREABLE;
 	MPASS(rid < 512);
 	irq->ii_rid = rid;
-	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &irq->ii_rid,
-				     RF_SHAREABLE | RF_ACTIVE);
+	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &irq->ii_rid, flags);
 	if (res == NULL) {
 		device_printf(dev,
 		    "failed to allocate IRQ for rid %d, name %s.\n", rid, name);
@@ -2114,7 +2114,7 @@ iflib_timer(void *arg)
 	return;
 hung:
 	CTX_LOCK(ctx);
-	if_setdrvflagbits(ctx->ifc_ifp, 0, IFF_DRV_RUNNING);
+	if_setdrvflagbits(ctx->ifc_ifp, IFF_DRV_OACTIVE, IFF_DRV_RUNNING);
 	device_printf(ctx->ifc_dev,  "TX(%d) desc avail = %d, pidx = %d\n",
 				  txq->ift_id, TXQ_AVAIL(txq), txq->ift_pidx);
 
@@ -2122,7 +2122,8 @@ hung:
 	ctx->ifc_watchdog_events++;
 	ctx->ifc_pause_frames = 0;
 
-	iflib_init_locked(ctx);
+	ctx->ifc_flags |= IFC_DO_RESET;
+	iflib_admin_intr_deferred(ctx);
 	CTX_UNLOCK(ctx);
 }
 
@@ -2600,7 +2601,7 @@ txq_max_rs_deferred(iflib_txq_t txq)
 		return (notify_count >> 1);
 	if (txq->ift_in_use > minthresh)
 		return (notify_count >> 2);
-	return (notify_count >> 4);
+	return (2);
 }
 
 #define M_CSUM_FLAGS(m) ((m)->m_pkthdr.csum_flags)
@@ -3516,8 +3517,11 @@ _task_fn_admin(void *context)
 	iflib_txq_t txq;
 	int i;
 
-	if (!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING))
-		return;
+	if (!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING)) {
+		if (!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_OACTIVE)) {
+			return;
+		}
+	}
 
 	CTX_LOCK(ctx);
 	for (txq = ctx->ifc_txqs, i = 0; i < sctx->isc_ntxqsets; i++, txq++) {
@@ -5181,7 +5185,7 @@ iflib_msix_init(if_ctx_t ctx)
 	bar = ctx->ifc_softc_ctx.isc_msix_bar;
 	admincnt = sctx->isc_admin_intrcnt;
 	/* Override by tuneable */
-	if (enable_msix == 0)
+	if (scctx->isc_disable_msix)
 		goto msi;
 
 	/*
@@ -5422,6 +5426,9 @@ iflib_add_device_sysctl_pre(if_ctx_t ctx)
 	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "override_qs_enable",
 		       CTLFLAG_RWTUN, &ctx->ifc_sysctl_qs_eq_override, 0,
                        "permit #txq != #rxq");
+       SYSCTL_ADD_INT(ctx_list, oid_list, OID_AUTO, "disable_msix",
+                      CTLFLAG_RWTUN, &ctx->ifc_softc_ctx.isc_disable_msix, 0,
+                      "disable MSIX (default 0)");
 
 	/* XXX change for per-queue sizes */
 	SYSCTL_ADD_PROC(ctx_list, oid_list, OID_AUTO, "override_ntxds",
