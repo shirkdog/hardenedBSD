@@ -41,7 +41,7 @@ __<src.opts.mk>__:
 # that haven't been converted over.
 #
 
-# These options are used by src the builds
+# These options are used by the src builds
 
 __DEFAULT_YES_OPTIONS = \
     ACCT \
@@ -63,6 +63,7 @@ __DEFAULT_YES_OPTIONS = \
     BOOTPARAMD \
     BOOTPD \
     BSD_CPIO \
+    BSD_GREP_FASTMATCH \
     BSDINSTALL \
     BSNMP \
     BZIP2 \
@@ -71,6 +72,7 @@ __DEFAULT_YES_OPTIONS = \
     CASPER \
     CCD \
     CDDL \
+    CLANG_EXTRAS \
     CPP \
     CROSS_COMPILER \
     CRYPT \
@@ -97,10 +99,8 @@ __DEFAULT_YES_OPTIONS = \
     GAMES \
     GCOV \
     GDB \
-    GNU \
     GNU_DIFF \
     GNU_GREP \
-    GNU_GREP_COMPAT \
     GPIO \
     GPL_DTC \
     GROFF \
@@ -182,10 +182,10 @@ __DEFAULT_YES_OPTIONS = \
 
 __DEFAULT_NO_OPTIONS = \
     BSD_GREP \
-    CLANG_EXTRAS \
     DEVD_PIE \
     DTRACE_TESTS \
     FREEBSD_UPDATE \
+    GNU_GREP_COMPAT \
     HESIOD \
     LIB32 \
     LIBSOFT \
@@ -194,6 +194,7 @@ __DEFAULT_NO_OPTIONS = \
     OPENLDAP \
     PORTSNAP \
     REPRODUCIBLE_BUILD \
+    RPCBIND_WARMSTART_SUPPORT \
     SHARED_TOOLCHAIN \
     SORT_THREADS \
     SVN \
@@ -268,6 +269,14 @@ __DEFAULT_NO_OPTIONS+=LLDB
 # LLVM lacks support for FreeBSD 64-bit atomic operations for ARMv4/ARMv5
 .if ${__T} == "arm" || ${__T} == "armeb"
 BROKEN_OPTIONS+=LLDB
+.endif
+# GDB in base is generally less functional than GDB in ports.  Ports GDB
+# does not yet contain kernel support for arm, and sparc64 kernel support
+# has not been tested.
+.if ${__T:Marm*} != "" || ${__T} == "sparc64"
+__DEFAULT_NO_OPTIONS+=GDB_LIBEXEC
+.else
+__DEFAULT_YES_OPTIONS+=GDB_LIBEXEC
 .endif
 # Only doing soft float API stuff on armv6
 .if ${__T} != "armv6"
@@ -354,16 +363,6 @@ MK_LIBTHR:=	no
 .if ${MK_LDNS} == "no"
 MK_LDNS_UTILS:=	no
 MK_UNBOUND:= no
-.endif
-
-.if ${MK_LLD} == "no"
-MK_LLD_IS_LD:=	no
-.endif
-
-# LLD requires LLVM libraries, and we do not yet compare in-tree and host LLD
-# versions to avoid building it if they are identical.
-.if ${MK_LLD_IS_LD} != "no"
-MK_SYSTEM_COMPILER:=	no
 .endif
 
 .if ${MK_SOURCELESS} == "no"
@@ -474,7 +473,6 @@ MK_${vv:H}:=	${MK_${vv:T}}
 .for var in \
     BLACKLIST \
     BZIP2 \
-    GNU \
     INET \
     INET6 \
     KERBEROS \

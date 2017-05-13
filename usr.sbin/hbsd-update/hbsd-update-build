@@ -909,6 +909,7 @@ main() {
 		esac
 	done
 
+<<<<<<< HEAD
 	check_sanity
 	check_jailname
 	res=${?}
@@ -925,11 +926,19 @@ main() {
 	fi
 
 	trap sigint_handler INT
+=======
+	if [ ! -z "${BUILDCONF}" ]; then
+		. ${BUILDCONF}
+	fi
+
+	setup_directories || exit 1
+>>>>>>> upstream/hardened/current/master
 
 	if [ -z "${tmpdir}" ]; then
 		get_tmpdir > /dev/null
 	fi
 
+<<<<<<< HEAD
 	get_version > /dev/null 2>&1
 	res=${?}
 	if [ ${res} -gt 0 ]; then
@@ -937,6 +946,12 @@ main() {
 		cleanup
 		exit 1
 	fi
+=======
+			export TARGET
+			export TARGET_ARCH
+
+			build_source || exit 1
+>>>>>>> upstream/hardened/current/master
 
 	check_version
 	res=${?}
