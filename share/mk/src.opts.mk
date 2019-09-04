@@ -154,7 +154,6 @@ __DEFAULT_YES_OPTIONS = \
     NVME \
     OPENSSL \
     PAM \
-    PC_SYSINSTALL \
     PF \
     PKGBOOTSTRAP \
     PMC \
