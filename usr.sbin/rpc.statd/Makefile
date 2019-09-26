@@ -4,16 +4,10 @@ PROG=	rpc.statd
 MAN=	rpc.statd.8
 SRCS=	file.c sm_inter_svc.c sm_inter.h statd.c procs.c
 
-<<<<<<< HEAD
-CFLAGS+= -I.
-WARNS?= 2
+CFLAGS+= -I${.OBJDIR}
+LIBADD=	rpcsvc
 
 CFI_OVERRIDE=	-fno-sanitize=cfi-icall
-
-=======
-CFLAGS+= -I${.OBJDIR}
->>>>>>> origin/freebsd/current/master
-LIBADD=	rpcsvc
 
 # XXX: mismatch between (xdrproc_t) and xdr_void().
 WARNS?=	2
