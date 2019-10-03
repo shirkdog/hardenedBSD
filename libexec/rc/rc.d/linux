@@ -3,12 +3,8 @@
 # $FreeBSD$
 #
 
-<<<<<<< HEAD:libexec/rc/rc.d/abi
-# PROVIDE: abi
-=======
 # PROVIDE: linux
 # REQUIRE: archdep
->>>>>>> origin/freebsd/current/master:libexec/rc/rc.d/linux
 # KEYWORD: nojail
 
 . /etc/rc.subr

@@ -202,13 +202,10 @@ __DEFAULT_NO_OPTIONS = \
     FREEBSD_UPDATE \
     GNU_GREP_COMPAT \
     HESIOD \
-<<<<<<< HEAD
     LIB32 \
     LIBRESSL \
-=======
-    HTTPD \
->>>>>>> origin/freebsd/current/master
     LIBSOFT \
+    HTTPD \
     LOADER_FIREWIRE \
     LOADER_FORCE_LE \
     LOADER_VERBOSE \
