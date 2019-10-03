@@ -124,6 +124,9 @@ SUBDIR.${MK_BLUETOOTH}+=	bluetooth
 SUBDIR.${MK_BOOTPARAMD}+=	bootparamd
 SUBDIR.${MK_BSDINSTALL}+=	bsdinstall
 SUBDIR.${MK_BSNMP}+=	bsnmpd
+.if ${MK_CAROOT} != "no"
+SUBDIR.${MK_OPENSSL}+=	certctl
+.endif
 SUBDIR.${MK_CXGBETOOL}+=	cxgbetool
 SUBDIR.${MK_DIALOG}+=	bsdconfig
 SUBDIR.${MK_EFI}+=	efivar efidp efibootmgr
@@ -138,8 +141,12 @@ SUBDIR.${MK_FMTREE}+=	fmtree
 SUBDIR.${MK_FREEBSD_UPDATE}+=	freebsd-update
 SUBDIR.${MK_GSSAPI}+=	gssd
 SUBDIR.${MK_GPIO}+=	gpioctl
+<<<<<<< HEAD
 SUBDIR.${MK_HBSD_UPDATE}+=	hbsd-update
 SUBDIR.${MK_HBSDCONTROL}+=	hbsdcontrol
+=======
+SUBDIR.${MK_HTTPD}+=	simple_httpd
+>>>>>>> origin/freebsd/current/master
 SUBDIR.${MK_INET6}+=	ip6addrctl
 SUBDIR.${MK_INET6}+=	mld6query
 SUBDIR.${MK_INET6}+=	ndp

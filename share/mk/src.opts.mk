@@ -78,6 +78,7 @@ __DEFAULT_YES_OPTIONS = \
     BZIP2 \
     CALENDAR \
     CAPSICUM \
+    CAROOT \
     CASPER \
     CCD \
     CDDL \
@@ -201,8 +202,12 @@ __DEFAULT_NO_OPTIONS = \
     FREEBSD_UPDATE \
     GNU_GREP_COMPAT \
     HESIOD \
+<<<<<<< HEAD
     LIB32 \
     LIBRESSL \
+=======
+    HTTPD \
+>>>>>>> origin/freebsd/current/master
     LIBSOFT \
     LOADER_FIREWIRE \
     LOADER_FORCE_LE \

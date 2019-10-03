@@ -60,6 +60,7 @@ TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
 LDFLAGS+= -static
 .endif
 
+<<<<<<< HEAD
 .if defined(MK_PIE)
 # Ports will not have MK_PIE defined and the following logic requires
 # it be defined.
@@ -119,6 +120,11 @@ CFLAGS+=	-mspeculative-load-hardening
 
 .if defined(MK_LIBRESSL) && ${MK_LIBRESSL} != "no"
 CFLAGS+=	-DHAVE_LIBRESSL
+=======
+# clang currently defaults to dynamic TLS for mips64 binaries
+.if ${MACHINE_ARCH:Mmips64*} && ${COMPILER_TYPE} == "clang"
+CFLAGS+= -ftls-model=initial-exec
+>>>>>>> origin/freebsd/current/master
 .endif
 
 .if ${MK_DEBUG_FILES} != "no"
