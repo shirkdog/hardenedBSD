@@ -668,3 +668,5 @@ device		ndis
 
 options		LINDEBUGFS
 options		GCOV
+
+options		STATS
