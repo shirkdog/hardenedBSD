@@ -463,6 +463,7 @@ ip_input(struct mbuf *m)
 	struct in_addr odst;			/* original dst address */
 
 	M_ASSERTPKTHDR(m);
+	NET_EPOCH_ASSERT();
 
 	if (m->m_flags & M_FASTFWD_OURS) {
 		m->m_flags &= ~M_FASTFWD_OURS;
@@ -714,9 +715,6 @@ passin:
 	 * into the stack for SIMPLEX interfaces handled by ether_output().
 	 */
 	if (ifp != NULL && ifp->if_flags & IFF_BROADCAST) {
-		struct epoch_tracker et;
-
-		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
@@ -726,7 +724,6 @@ passin:
 				counter_u64_add(ia->ia_ifa.ifa_ipackets, 1);
 				counter_u64_add(ia->ia_ifa.ifa_ibytes,
 				    m->m_pkthdr.len);
-				NET_EPOCH_EXIT(et);
 				goto ours;
 			}
 #ifdef BOOTP_COMPAT
@@ -734,12 +731,10 @@ passin:
 				counter_u64_add(ia->ia_ifa.ifa_ipackets, 1);
 				counter_u64_add(ia->ia_ifa.ifa_ibytes,
 				    m->m_pkthdr.len);
-				NET_EPOCH_EXIT(et);
 				goto ours;
 			}
 #endif
 		}
-		NET_EPOCH_EXIT(et);
 		ia = NULL;
 	}
 	/* RFC 3927 2.7: Do not forward datagrams for 169.254.0.0/16. */
@@ -959,8 +954,9 @@ ip_forward(struct mbuf *m, int srcrt)
 	struct sockaddr_in *sin;
 	struct in_addr dest;
 	struct route ro;
-	struct epoch_tracker et;
 	int error, type = 0, code = 0, mtu = 0;
+
+	NET_EPOCH_ASSERT();
 
 	if (m->m_flags & (M_BCAST|M_MCAST) || in_canforward(ip->ip_dst) == 0) {
 		IPSTAT_INC(ips_cantforward);
@@ -988,7 +984,6 @@ ip_forward(struct mbuf *m, int srcrt)
 #else
 	in_rtalloc_ign(&ro, 0, M_GETFIB(m));
 #endif
-	NET_EPOCH_ENTER(et);
 	if (ro.ro_rt != NULL) {
 		ia = ifatoia(ro.ro_rt->rt_ifa);
 	} else
@@ -1036,7 +1031,7 @@ ip_forward(struct mbuf *m, int srcrt)
 			m_freem(mcopy);
 			if (error != EINPROGRESS)
 				IPSTAT_INC(ips_cantforward);
-			goto out;
+			return;
 		}
 		/* No IPsec processing required */
 	}
@@ -1089,11 +1084,11 @@ ip_forward(struct mbuf *m, int srcrt)
 		else {
 			if (mcopy)
 				m_freem(mcopy);
-			goto out;
+			return;
 		}
 	}
 	if (mcopy == NULL)
-		goto out;
+		return;
 
 
 	switch (error) {
@@ -1136,11 +1131,9 @@ ip_forward(struct mbuf *m, int srcrt)
 	case ENOBUFS:
 	case EACCES:			/* ipfw denied packet */
 		m_freem(mcopy);
-		goto out;
+		return;
 	}
 	icmp_error(mcopy, type, code, dest.s_addr, mtu);
- out:
-	NET_EPOCH_EXIT(et);
 }
 
 #define	CHECK_SO_CT(sp, ct) \

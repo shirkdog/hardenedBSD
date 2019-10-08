@@ -398,7 +398,6 @@ freeit:
 int
 icmp_input(struct mbuf **mp, int *offp, int proto)
 {
-	struct epoch_tracker et;
 	struct icmp *icp;
 	struct in_ifaddr *ia;
 	struct mbuf *m = *mp;
@@ -409,6 +408,8 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 	int i, code;
 	void (*ctlfunc)(int, struct sockaddr *, void *);
 	int fibnum;
+
+	NET_EPOCH_ASSERT();
 
 	*mp = NULL;
 
@@ -426,7 +427,6 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 		    inet_ntoa_r(ip->ip_dst, dstbuf), icmplen);
 	}
 #endif
-	NET_EPOCH_ENTER(et);
 	if (icmplen < ICMP_MINLEN) {
 		ICMPSTAT_INC(icps_tooshort);
 		goto freeit;
@@ -434,7 +434,6 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 	i = hlen + min(icmplen, ICMP_ADVLENMIN);
 	if (m->m_len < i && (m = m_pullup(m, i)) == NULL)  {
 		ICMPSTAT_INC(icps_tooshort);
-		NET_EPOCH_EXIT(et);
 		return (IPPROTO_DONE);
 	}
 	ip = mtod(m, struct ip *);
@@ -552,7 +551,6 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 		if (m->m_len < i && (m = m_pullup(m, i)) == NULL) {
 			/* This should actually not happen */
 			ICMPSTAT_INC(icps_tooshort);
-			NET_EPOCH_EXIT(et);
 			return (IPPROTO_DONE);
 		}
 		ip = mtod(m, struct ip *);
@@ -645,7 +643,6 @@ reflect:
 		ICMPSTAT_INC(icps_reflect);
 		ICMPSTAT_INC(icps_outhist[icp->icmp_type]);
 		icmp_reflect(m);
-		NET_EPOCH_EXIT(et);
 		return (IPPROTO_DONE);
 
 	case ICMP_REDIRECT:
@@ -722,13 +719,11 @@ reflect:
 	}
 
 raw:
-	NET_EPOCH_EXIT(et);
 	*mp = m;
 	rip_input(mp, offp, proto);
 	return (IPPROTO_DONE);
 
 freeit:
-	NET_EPOCH_EXIT(et);
 	m_freem(m);
 	return (IPPROTO_DONE);
 }
@@ -740,7 +735,6 @@ static void
 icmp_reflect(struct mbuf *m)
 {
 	struct rm_priotracker in_ifa_tracker;
-	struct epoch_tracker et;
 	struct ip *ip = mtod(m, struct ip *);
 	struct ifaddr *ifa;
 	struct ifnet *ifp;
@@ -749,6 +743,8 @@ icmp_reflect(struct mbuf *m)
 	struct nhop4_extended nh_ext;
 	struct mbuf *opts = NULL;
 	int optlen = (ip->ip_hl << 2) - sizeof(struct ip);
+
+	NET_EPOCH_ASSERT();
 
 	if (IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
 	    IN_EXPERIMENTAL(ntohl(ip->ip_src.s_addr)) ||
@@ -784,7 +780,6 @@ icmp_reflect(struct mbuf *m)
 	 */
 	ifp = m->m_pkthdr.rcvif;
 	if (ifp != NULL && ifp->if_flags & IFF_BROADCAST) {
-		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
@@ -792,11 +787,9 @@ icmp_reflect(struct mbuf *m)
 			if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
 			    t.s_addr) {
 				t = IA_SIN(ia)->sin_addr;
-				NET_EPOCH_EXIT(et);
 				goto match;
 			}
 		}
-		NET_EPOCH_EXIT(et);
 	}
 	/*
 	 * If the packet was transiting through us, use the address of
@@ -805,16 +798,13 @@ icmp_reflect(struct mbuf *m)
 	 * criteria apply.
 	 */
 	if (V_icmp_rfi && ifp != NULL) {
-		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			ia = ifatoia(ifa);
 			t = IA_SIN(ia)->sin_addr;
-			NET_EPOCH_EXIT(et);
 			goto match;
 		}
-		NET_EPOCH_EXIT(et);
 	}
 	/*
 	 * If the incoming packet was not addressed directly to us, use
@@ -823,16 +813,13 @@ icmp_reflect(struct mbuf *m)
 	 * with normal source selection.
 	 */
 	if (V_reply_src[0] != '\0' && (ifp = ifunit(V_reply_src))) {
-		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			ia = ifatoia(ifa);
 			t = IA_SIN(ia)->sin_addr;
-			NET_EPOCH_EXIT(et);
 			goto match;
 		}
-		NET_EPOCH_EXIT(et);
 	}
 	/*
 	 * If the packet was transiting through us, use the address of
