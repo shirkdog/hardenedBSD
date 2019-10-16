@@ -183,6 +183,7 @@ SUBDIR=	\
 	${_iser} \
 	isp \
 	${_ispfw} \
+	${_itwd} \
 	${_iwi} \
 	${_iwifw} \
 	${_iwm} \
@@ -596,6 +597,7 @@ _et=		et
 _exca=		exca
 _if_ndis=	if_ndis
 _io=		io
+_itwd=		itwd
 _ix=		ix
 _ixv=		ixv
 .if ${MK_SOURCELESS_UCODE} != "no"
