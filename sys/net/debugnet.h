@@ -90,6 +90,8 @@ struct debugnet_methods {
 #define	DEBUGNET_SUPPORTED_NIC(ifp)				\
 	((ifp)->if_debugnet_methods != NULL && (ifp)->if_type == IFT_ETHER)
 
+struct debugnet_pcb; /* opaque */
+
 /*
  * Debugnet consumer API.
  */
@@ -100,16 +102,43 @@ struct debugnet_conn_params {
 	in_addr_t	dc_gateway;
 
 	uint16_t	dc_herald_port;
-	uint16_t	dc_client_ack_port;
+	uint16_t	dc_client_port;
 
 	const void	*dc_herald_data;
 	uint32_t	dc_herald_datalen;
+
+	/*
+	 * Consistent with debugnet_send(), aux paramaters to debugnet
+	 * functions are provided host-endian (but converted to
+	 * network endian on the wire).
+	 */
+	uint32_t	dc_herald_aux2;
+	uint64_t	dc_herald_offset;
+
+	/*
+	 * If NULL, debugnet is a unidirectional channel from panic machine to
+	 * remote server (like netdump).
+	 *
+	 * If handler is non-NULL, packets received on the client port that are
+	 * not just tx acks are forwarded to the provided handler.
+	 *
+	 * The mbuf chain will have all non-debugnet framing headers removed
+	 * (ethernet, inet, udp).  It will start with a debugnet_msg_hdr, of
+	 * which the header is guaranteed to be contiguous.  If m_pullup is
+	 * used, the supplied in-out mbuf pointer should be updated
+	 * appropriately.
+	 *
+	 * If the handler frees the mbuf chain, it should set the mbuf pointer
+	 * to NULL.  Otherwise, the debugnet input framework will free the
+	 * chain.
+	 *
+	 * The handler should ACK receieved packets with debugnet_ack_output.
+	 */
+	void		(*dc_rx_handler)(struct debugnet_pcb *, struct mbuf **);
 };
 
-struct debugnet_pcb; /* opaque */
-
 /*
- * Open a unidirectional stream to the specified server's herald port.
+ * Open a stream to the specified server's herald port.
  *
  * If all goes well, the server will send ACK from a different port to our ack
  * port.  This allows servers to somewhat gracefully handle multiple debugnet
@@ -159,6 +188,16 @@ debugnet_sendempty(struct debugnet_pcb *pcb, uint32_t mhtype)
 }
 
 /*
+ * Full-duplex RX should ACK received messages.
+ */
+int debugnet_ack_output(struct debugnet_pcb *, uint32_t seqno /*net endian*/);
+
+/*
+ * Check and/or wait for further packets.
+ */
+void debugnet_network_poll(struct debugnet_pcb *);
+
+/*
  * PCB accessors.
  */
 
@@ -172,6 +211,31 @@ const unsigned char *debugnet_get_gw_mac(const struct debugnet_pcb *);
  * Callbacks from core mbuf code.
  */
 void debugnet_any_ifnet_update(struct ifnet *);
+
+/*
+ * DDB parsing helper for common debugnet options.
+ *
+ * -s <server> [-g <gateway -c <localip> -i <interface>]
+ *
+ * Order is not significant.  Interface is an online interface that supports
+ * debugnet and can route to the debugnet server.  The other parameters are all
+ * IP addresses.  Only the server parameter is required.  The others are
+ * inferred automatically from the routing table, if not explicitly provided.
+ *
+ * Provides basic '-h' using provided 'cmd' string.
+ *
+ * Returns zero on success, or errno.
+ */
+struct debugnet_ddb_config {
+	struct ifnet	*dd_ifp;	/* not ref'd */
+	in_addr_t	dd_client;
+	in_addr_t	dd_server;
+	in_addr_t	dd_gateway;
+	bool		dd_has_client : 1;
+	bool		dd_has_gateway : 1;
+};
+int debugnet_parse_ddb_cmd(const char *cmd,
+    struct debugnet_ddb_config *result);
 
 /* Expose sysctl variables for netdump(4) to alias. */
 extern int debugnet_npolls;
