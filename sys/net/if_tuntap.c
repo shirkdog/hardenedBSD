@@ -181,7 +181,7 @@ static const char vmnetname[] = "vmnet";
 static MALLOC_DEFINE(M_TUN, tunname, "Tunnel Interface");
 static int tundebug = 0;
 static int tundclone = 1;
-static int tap_allow_uopen = 0;	/* allow user open() */
+static int tap_allow_uopen = 0;	/* allow user devfs cloning */
 static int tapuponopen = 0;	/* IFF_UP on open() */
 static int tapdclone = 1;	/* enable devfs cloning */
 
@@ -202,7 +202,7 @@ SYSCTL_INT(_net_link_tun, OID_AUTO, devfs_cloning, CTLFLAG_RWTUN, &tundclone, 0,
 static SYSCTL_NODE(_net_link, OID_AUTO, tap, CTLFLAG_RW, 0,
     "Ethernet tunnel software network interface");
 SYSCTL_INT(_net_link_tap, OID_AUTO, user_open, CTLFLAG_RW, &tap_allow_uopen, 0,
-    "Allow user to open /dev/tap (based on node permissions)");
+    "Enable legacy devfs interface creation for all users");
 SYSCTL_INT(_net_link_tap, OID_AUTO, up_on_open, CTLFLAG_RW, &tapuponopen, 0,
     "Bring interface up when /dev/tap is opened");
 SYSCTL_INT(_net_link_tap, OID_AUTO, devfs_cloning, CTLFLAG_RWTUN, &tapdclone, 0,
@@ -783,9 +783,15 @@ static moduledata_t tuntap_mod = {
 	0
 };
 
+/* We'll only ever have these two, so no need for a macro. */
+static moduledata_t tun_mod = { "if_tun", NULL, 0 };
+static moduledata_t tap_mod = { "if_tap", NULL, 0 };
+
 DECLARE_MODULE(if_tuntap, tuntap_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(if_tuntap, 1);
+DECLARE_MODULE(if_tun, tun_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(if_tun, 1);
+DECLARE_MODULE(if_tap, tap_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(if_tap, 1);
 
 static int
@@ -1047,17 +1053,6 @@ tunopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	if (error != 0) {
 		CURVNET_RESTORE();
 		return (error);	/* Shouldn't happen */
-	}
-
-	if ((tunflags & TUN_L2) != 0) {
-		/* Restrict? */
-		if (tap_allow_uopen == 0) {
-			error = priv_check(td, PRIV_NET_TAP);
-			if (error != 0) {
-				CURVNET_RESTORE();
-				return (error);
-			}
-		}
 	}
 
 	tp = dev->si_drv1;
