@@ -12,6 +12,7 @@ SHLIB_MAJOR=	1
 
 INCS=		execinfo.h
 SRCS=		backtrace.c symtab.c unwind.c
+CFLAGS+=	-I${SRCTOP}/contrib/libunwind/include
 
 LIBADD=		elf
 
