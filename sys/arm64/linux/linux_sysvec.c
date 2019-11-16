@@ -155,10 +155,6 @@ linux_copyout_auxargs(struct image_params *imgp, u_long *base)
 
 	LIN_SDT_PROBE0(sysvec, linux_copyout_auxargs, todo);
 	p = imgp->proc;
-<<<<<<< HEAD
-	arginfo = (struct ps_strings *)p->p_psstrings;
-=======
->>>>>>> upstream/master
 
 	args = (Elf64_Auxargs *)imgp->auxargs;
 	argarray = pos = malloc(LINUX_AT_COUNT * sizeof(*pos), M_TEMP,

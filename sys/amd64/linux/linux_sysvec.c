@@ -235,14 +235,6 @@ linux_copyout_auxargs(struct image_params *imgp, u_long *base)
 	int issetugid;
 
 	p = imgp->proc;
-<<<<<<< HEAD
-	arginfo = (struct ps_strings *)p->p_psstrings;
-
-	KASSERT(curthread->td_proc == imgp->proc,
-	    ("unsafe linux_fixup_elf(), should be curproc"));
-	base = (Elf64_Addr *)*stack_base;
-=======
->>>>>>> upstream/master
 	args = (Elf64_Auxargs *)imgp->auxargs;
 	argarray = pos = malloc(LINUX_AT_COUNT * sizeof(*pos), M_TEMP,
 	    M_WAITOK | M_ZERO);
@@ -721,12 +713,8 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_maxuser	= VM_MAXUSER_ADDRESS,
 	.sv_usrstack	= USRSTACK,
 	.sv_psstrings	= PS_STRINGS,
-<<<<<<< HEAD
 	.sv_stackprot	= VM_PROT_READ | VM_PROT_WRITE,
-=======
-	.sv_stackprot	= VM_PROT_ALL,
 	.sv_copyout_auxargs = linux_copyout_auxargs,
->>>>>>> upstream/master
 	.sv_copyout_strings = linux_copyout_strings,
 	.sv_setregs	= linux_exec_setregs,
 	.sv_fixlimit	= NULL,
