@@ -187,21 +187,22 @@ linux_translate_traps(int signal, int trap_code)
 	}
 }
 
-static int
-linux_fixup_elf(register_t **stack_base, struct image_params *imgp)
+static void
+linux_copyout_auxargs(struct image_params *imgp, u_long *base)
 {
 	Elf32_Auxargs *args;
 	Elf32_Auxinfo *argarray, *pos;
-	Elf32_Addr *auxbase, *base;
-	struct linux32_ps_strings *arginfo;
-	int error, issetugid;
+	u_long auxlen;
+	int issetugid;
 
+<<<<<<< HEAD
 	KASSERT(curthread->td_proc == imgp->proc,
 	    ("unsafe linux_fixup_elf(), should be curproc"));
 	arginfo = (struct linux32_ps_strings *)imgp->proc->p_psstrings;
 	base = (Elf32_Addr *)*stack_base;
+=======
+>>>>>>> upstream/master
 	args = (Elf32_Auxargs *)imgp->auxargs;
-	auxbase = base + (imgp->args->argc + 1 + imgp->args->envc + 1);
 	argarray = pos = malloc(LINUX_AT_COUNT * sizeof(*pos), M_TEMP,
 	    M_WAITOK | M_ZERO);
 
@@ -245,12 +246,18 @@ linux_fixup_elf(register_t **stack_base, struct image_params *imgp)
 	imgp->auxargs = NULL;
 	KASSERT(pos - argarray <= LINUX_AT_COUNT, ("Too many auxargs"));
 
-	error = copyout(&argarray[0], auxbase,
-	    sizeof(*argarray) * LINUX_AT_COUNT);
+	auxlen = sizeof(*argarray) * (pos - argarray);
+	*base -= auxlen;
+	copyout(argarray, (void *)*base, auxlen);
 	free(argarray, M_TEMP);
-	if (error != 0)
-		return (error);
+}
 
+static int
+linux_fixup_elf(register_t **stack_base, struct image_params *imgp)
+{
+	Elf32_Addr *base;
+
+	base = (Elf32_Addr *)*stack_base;
 	base--;
 	if (suword32(base, (uint32_t)imgp->args->argc) == -1)
 		return (EFAULT);
@@ -756,14 +763,8 @@ linux_copyout_strings(struct image_params *imgp)
 	copyout(canary, (void *)imgp->canary, sizeof(canary));
 
 	vectp = (uint32_t *)destp;
-	if (imgp->auxargs) {
-		/*
-		 * Allocate room on the stack for the ELF auxargs
-		 * array.  It has LINUX_AT_COUNT entries.
-		 */
-		vectp -= howmany(LINUX_AT_COUNT * sizeof(Elf32_Auxinfo),
-		    sizeof(*vectp));
-	}
+	if (imgp->auxargs)
+		imgp->sysent->sv_copyout_auxargs(imgp, (u_long *)&vectp);
 
 	/*
 	 * Allocate room for the argv[] and env vectors including the
@@ -875,7 +876,12 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_maxuser	= LINUX32_MAXUSER,
 	.sv_usrstack	= LINUX32_USRSTACK,
 	.sv_psstrings	= LINUX32_PS_STRINGS,
+<<<<<<< HEAD
 	.sv_stackprot	= VM_PROT_READ | VM_PROT_WRITE,
+=======
+	.sv_stackprot	= VM_PROT_ALL,
+	.sv_copyout_auxargs = linux_copyout_auxargs,
+>>>>>>> upstream/master
 	.sv_copyout_strings = linux_copyout_strings,
 	.sv_setregs	= linux_exec_setregs,
 	.sv_fixlimit	= linux32_fixlimit,
