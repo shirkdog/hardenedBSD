@@ -3963,12 +3963,8 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 	}
 
 	new_map->anon_loc = old_map->anon_loc;
-<<<<<<< HEAD
-	old_entry = old_map->header.next;
-=======
 
 	old_entry = vm_map_entry_first(old_map);
->>>>>>> upstream/master
 
 	while (old_entry != &old_map->header) {
 		if (old_entry->eflags & MAP_ENTRY_IS_SUB_MAP)
