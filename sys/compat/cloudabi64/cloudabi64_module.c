@@ -45,8 +45,8 @@ __FBSDID("$FreeBSD$");
 extern char _binary_cloudabi64_vdso_o_start[];
 extern char _binary_cloudabi64_vdso_o_end[];
 
-register_t *
-cloudabi64_copyout_strings(struct image_params *imgp)
+int
+cloudabi64_copyout_strings(struct image_params *imgp, register_t **stack_base)
 {
 	struct image_args *args;
 	uintptr_t begin;
@@ -55,9 +55,15 @@ cloudabi64_copyout_strings(struct image_params *imgp)
 	/* Copy out program arguments. */
 	args = imgp->args;
 	len = exec_args_get_begin_envv(args) - args->begin_argv;
+<<<<<<< HEAD
 	begin = rounddown2(imgp->proc->p_usrstack - len, sizeof(register_t));
 	copyout(args->begin_argv, (void *)begin, len);
 	return ((register_t *)begin);
+=======
+	begin = rounddown2(imgp->sysent->sv_usrstack - len, sizeof(register_t));
+	*stack_base = (register_t *)begin;
+	return (copyout(args->begin_argv, (void *)begin, len));
+>>>>>>> upstream/master
 }
 
 int

@@ -55,7 +55,6 @@ __<src.opts.mk>__:
 __DEFAULT_YES_OPTIONS = \
     ACCT \
     ACPI \
-    AMD \
     APM \
     AT \
     ATM \
@@ -195,6 +194,7 @@ __DEFAULT_YES_OPTIONS = \
     ZONEINFO
 
 __DEFAULT_NO_OPTIONS = \
+    AMD \
     BEARSSL \
     BSD_GREP \
     BSD_GREP_FASTMATCH \
