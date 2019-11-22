@@ -1423,6 +1423,8 @@ dev/cxgbe/common/t4_hw.c	optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/common/t4vf_hw.c	optional cxgbev pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
+dev/cxgbe/crypto/t4_kern_tls.c	optional cxgbe pci kern_tls \
+	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/crypto/t4_keyctx.c	optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/cudbg/cudbg_common.c	optional cxgbe \
@@ -3814,6 +3816,8 @@ kern/subr_compressor.c		standard \
 kern/subr_coverage.c		optional coverage \
 	compile-with "${NORMAL_C:N-fsanitize*}"
 kern/subr_counter.c		standard
+kern/subr_csan.c		optional kcsan \
+	compile-with "${NORMAL_C:N-fsanitize*}"
 kern/subr_devstat.c		standard
 kern/subr_disk.c		standard
 kern/subr_early.c		standard

@@ -27,23 +27,19 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef _SYS_CSAN_H_
 #define _SYS_CSAN_H_
 
-#ifdef _KERNEL_OPT
-#include "opt_kcsan.h"
-#endif
-
 #include <sys/types.h>
 
 #ifdef KCSAN
-void kcsan_init(void);
-void kcsan_cpu_init(struct cpu_info *);
+void kcsan_cpu_init(u_int);
 #else
-#define kcsan_init()		__nothing
-#define kcsan_cpu_init(ci)	__nothing
+#define kcsan_cpu_init(ci)	((void)0)
 #endif
 
 #endif /* !_SYS_CSAN_H_ */
