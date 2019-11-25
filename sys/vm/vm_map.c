@@ -2600,18 +2600,14 @@ again:
 		    (entry->eflags & MAP_ENTRY_GUARD) != 0)
 			continue;
 
-<<<<<<< HEAD
-		old_prot = current->protection;
+		old_prot = entry->protection;
 #ifdef PAX_NOEXEC
 		ret = pax_mprotect_enforce(curthread->td_proc, map, old_prot, new_prot);
 		if (ret != 0) {
 			return (ret);
 		}
 #endif
-=======
-		old_prot = entry->protection;
 
->>>>>>> origin/freebsd/current/master
 		if (set_max)
 			entry->protection =
 			    (entry->max_protection = new_prot) &
