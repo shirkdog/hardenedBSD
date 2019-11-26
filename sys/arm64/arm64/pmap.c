@@ -105,6 +105,7 @@ __FBSDID("$FreeBSD$");
  *	and to when physical maps must be made correct.
  */
 
+#include "opt_pax.h"
 #include "opt_vm.h"
 
 #include <sys/param.h>
@@ -6161,6 +6162,7 @@ pmap_is_valid_memattr(pmap_t pmap __unused, vm_memattr_t mode)
 	return (mode >= VM_MEMATTR_DEVICE && mode <= VM_MEMATTR_WRITE_THROUGH);
 }
 
+#ifndef PAX_HARDENING
 /*
  * Track a range of the kernel's virtual address space that is contiguous
  * in various mapping attributes.
@@ -6366,6 +6368,7 @@ sysctl_kmaps(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_OID(_vm_pmap, OID_AUTO, kernel_maps,
-    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE | CTLFLAG_ROOTONLY,
     NULL, 0, sysctl_kmaps, "A",
     "Dump kernel address layout");
+#endif /* !PAX_HARDENING */
