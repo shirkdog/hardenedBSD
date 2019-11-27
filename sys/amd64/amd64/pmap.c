@@ -2329,6 +2329,7 @@ pmap_cache_mask(pmap_t pmap, boolean_t is_pde)
 	return (mask);
 }
 
+#ifndef PAX_HARDENING
 static int
 pmap_pat_index(pmap_t pmap, pt_entry_t pte, bool is_pde)
 {
@@ -2363,6 +2364,7 @@ pmap_pat_index(pmap_t pmap, pt_entry_t pte, bool is_pde)
 
 	return (pat_idx);
 }
+#endif /* !PAX_HARDENING */
 
 bool
 pmap_ps_enabled(pmap_t pmap)
@@ -10325,6 +10327,7 @@ pmap_pkru_clear(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	return (error);
 }
 
+#ifndef PAX_HARDENING
 /*
  * Track a range of the kernel's virtual address space that is contiguous
  * in various mapping attributes.
@@ -10421,7 +10424,6 @@ sysctl_kmaps_reinit(struct pmap_kernel_map_range *range, vm_offset_t va,
 	range->attrs = attrs;
 }
 
-#ifndef PAX_HARDENING
 /*
  * Given a leaf PTE, derive the mapping's attributes.  If they do not match
  * those of the current run, dump the address range and its attributes, and
