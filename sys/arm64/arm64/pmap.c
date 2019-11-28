@@ -1044,7 +1044,6 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
 	uint64_t r;
 
-	sched_pin();
 	dsb(ishst);
 	if (pmap == kernel_pmap) {
 		r = atop(va);
@@ -1055,11 +1054,10 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 	}
 	dsb(ish);
 	isb();
-	sched_unpin();
 }
 
 static __inline void
-pmap_invalidate_range_nopin(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	uint64_t end, r, start;
 
@@ -1081,20 +1079,10 @@ pmap_invalidate_range_nopin(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 }
 
 static __inline void
-pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
-{
-
-	sched_pin();
-	pmap_invalidate_range_nopin(pmap, sva, eva);
-	sched_unpin();
-}
-
-static __inline void
 pmap_invalidate_all(pmap_t pmap)
 {
 	uint64_t r;
 
-	sched_pin();
 	dsb(ishst);
 	if (pmap == kernel_pmap) {
 		__asm __volatile("tlbi vmalle1is");
@@ -1104,7 +1092,6 @@ pmap_invalidate_all(pmap_t pmap)
 	}
 	dsb(ish);
 	isb();
-	sched_unpin();
 }
 
 /*
@@ -3115,7 +3102,7 @@ pmap_update_entry(pmap_t pmap, pd_entry_t *pte, pd_entry_t newpte,
 	 * lookup the physical address.
 	 */
 	pmap_clear_bits(pte, ATTR_DESCR_VALID);
-	pmap_invalidate_range_nopin(pmap, va, va + size);
+	pmap_invalidate_range(pmap, va, va + size);
 
 	/* Create the new mapping */
 	pmap_store(pte, newpte);
