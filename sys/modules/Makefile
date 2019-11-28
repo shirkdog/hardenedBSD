@@ -351,7 +351,6 @@ SUBDIR=	\
 	tmpfs \
 	${_toecore} \
 	${_tpm} \
-	trm \
 	${_twa} \
 	twe \
 	tws \
