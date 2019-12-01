@@ -150,6 +150,11 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, drop_synfin, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(drop_synfin), 0,
     "Drop TCP packets with SYN+FIN set");
 
+VNET_DEFINE(int, tcp_do_newcwv) = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, newcwv, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(tcp_do_newcwv), 0,
+    "Enable New Congestion Window Validation per RFC7661");
+
 VNET_DEFINE(int, tcp_do_rfc6675_pipe) = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc6675_pipe, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_rfc6675_pipe), 0,
@@ -297,7 +302,9 @@ cc_ack_received(struct tcpcb *tp, struct tcphdr *th, uint16_t nsegs,
 
 	tp->ccv->nsegs = nsegs;
 	tp->ccv->bytes_this_ack = BYTES_THIS_ACK(tp, th);
-	if (tp->snd_cwnd <= tp->snd_wnd)
+	if ((!V_tcp_do_newcwv && (tp->snd_cwnd <= tp->snd_wnd)) ||
+	    (V_tcp_do_newcwv && (tp->snd_cwnd <= tp->snd_wnd) &&
+	     (tp->snd_cwnd < (tcp_compute_pipe(tp) * 2))))
 		tp->ccv->flags |= CCF_CWND_LIMITED;
 	else
 		tp->ccv->flags &= ~CCF_CWND_LIMITED;
@@ -390,16 +397,16 @@ cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type)
 	case CC_NDUPACK:
 		if (!IN_FASTRECOVERY(tp->t_flags)) {
 			tp->snd_recover = tp->snd_max;
-			if (tp->t_flags & TF_ECN_PERMIT)
-				tp->t_flags |= TF_ECN_SND_CWR;
+			if (tp->t_flags2 & TF2_ECN_PERMIT)
+				tp->t_flags2 |= TF2_ECN_SND_CWR;
 		}
 		break;
 	case CC_ECN:
 		if (!IN_CONGRECOVERY(tp->t_flags)) {
 			TCPSTAT_INC(tcps_ecn_rcwnd);
 			tp->snd_recover = tp->snd_max;
-			if (tp->t_flags & TF_ECN_PERMIT)
-				tp->t_flags |= TF_ECN_SND_CWR;
+			if (tp->t_flags2 & TF2_ECN_PERMIT)
+				tp->t_flags2 |= TF2_ECN_SND_CWR;
 		}
 		break;
 	case CC_RTO:
@@ -1282,7 +1289,7 @@ tfo_socket_result:
 #endif
 		TCP_PROBE3(debug__input, tp, th, m);
 		tcp_dooptions(&to, optp, optlen, TO_SYN);
-		if (syncache_add(&inc, &to, th, inp, &so, m, NULL, NULL))
+		if (syncache_add(&inc, &to, th, inp, &so, m, NULL, NULL, iptos))
 			goto tfo_socket_result;
 
 		/*
@@ -1493,12 +1500,12 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/*
 	 * TCP ECN processing.
 	 */
-	if (tp->t_flags & TF_ECN_PERMIT) {
+	if (tp->t_flags2 & TF2_ECN_PERMIT) {
 		if (thflags & TH_CWR)
-			tp->t_flags &= ~TF_ECN_SND_ECE;
+			tp->t_flags2 &= ~TF2_ECN_SND_ECE;
 		switch (iptos & IPTOS_ECN_MASK) {
 		case IPTOS_ECN_CE:
-			tp->t_flags |= TF_ECN_SND_ECE;
+			tp->t_flags2 |= TF2_ECN_SND_ECE;
 			TCPSTAT_INC(tcps_ecn_ce);
 			break;
 		case IPTOS_ECN_ECT0:
@@ -1927,7 +1934,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 			if (((thflags & (TH_CWR | TH_ECE)) == TH_ECE) &&
 			    V_tcp_do_ecn) {
-				tp->t_flags |= TF_ECN_PERMIT;
+				tp->t_flags2 |= TF2_ECN_PERMIT;
 				TCPSTAT_INC(tcps_ecn_shs);
 			}
 			
