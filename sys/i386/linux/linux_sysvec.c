@@ -292,16 +292,8 @@ linux_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 		execpath_len = strlen(imgp->execpath) + 1;
 	else
 		execpath_len = 0;
-<<<<<<< HEAD
 	arginfo = (struct ps_strings *)p->p_psstrings;
-	destp = (caddr_t)arginfo - SPARE_USRSPACE - linux_szplatform -
-	    roundup(sizeof(canary), sizeof(char *)) -
-	    roundup(execpath_len, sizeof(char *)) -
-	    roundup(ARG_MAX - imgp->args->stringspace, sizeof(char *));
-=======
-	arginfo = (struct ps_strings *)p->p_sysent->sv_psstrings;
 	destp = (uintptr_t)arginfo;
->>>>>>> origin/freebsd/current/master
 
 	/* Install LINUX_PLATFORM. */
 	destp -= linux_szplatform;

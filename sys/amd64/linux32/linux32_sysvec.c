@@ -740,16 +740,8 @@ linux_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 	else
 		execpath_len = 0;
 
-<<<<<<< HEAD
-	arginfo = (struct linux32_ps_strings *)imgp->proc->p_psstrings;
-	destp =	(caddr_t)arginfo - SPARE_USRSPACE -
-	    roundup(sizeof(canary), sizeof(char *)) -
-	    roundup(execpath_len, sizeof(char *)) -
-	    roundup(ARG_MAX - imgp->args->stringspace, sizeof(char *));
-=======
-	arginfo = (struct linux32_ps_strings *)LINUX32_PS_STRINGS;
+	arginfo = (struct linux32_ps_strings *)(imgp->proc->p_psstrings);
 	destp = (uintptr_t)arginfo;
->>>>>>> origin/freebsd/current/master
 
 	if (execpath_len != 0) {
 		destp -= execpath_len;

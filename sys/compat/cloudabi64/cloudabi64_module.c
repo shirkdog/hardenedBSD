@@ -55,13 +55,8 @@ cloudabi64_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 	/* Copy out program arguments. */
 	args = imgp->args;
 	len = exec_args_get_begin_envv(args) - args->begin_argv;
-<<<<<<< HEAD
 	begin = rounddown2(imgp->proc->p_usrstack - len, sizeof(register_t));
-	*stack_base = (register_t *)begin;
-=======
-	begin = rounddown2(imgp->sysent->sv_usrstack - len, sizeof(register_t));
 	*stack_base = begin;
->>>>>>> origin/freebsd/current/master
 	return (copyout(args->begin_argv, (void *)begin, len));
 }
 
