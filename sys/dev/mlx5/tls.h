@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2006,2008 Joseph Koshy
- * All rights reserved.
+ * Copyright (c) 2019, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -11,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS `AS IS' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -22,45 +21,19 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <ar.h>
-#include <assert.h>
-#include <libelf.h>
+#ifndef __MLX5_TLS_H__
+#define	__MLX5_TLS_H__
 
-#include "_libelf.h"
+struct mlx5_core_dev;
 
-ELFTC_VCSID("$Id: elf_getident.c 3712 2019-03-16 22:23:34Z jkoshy $");
+int mlx5_encryption_key_create(struct mlx5_core_dev *mdev, u32 pdn,
+    const void *p_key, u32 key_len, u32 * p_obj_id);
+int mlx5_encryption_key_destroy(struct mlx5_core_dev *mdev, u32 oid);
+int mlx5_tls_open_tis(struct mlx5_core_dev *mdev, int tc, int tdn, int pdn, u32 *p_tisn);
+void mlx5_tls_close_tis(struct mlx5_core_dev *mdev, u32 tisn);
 
-char *
-elf_getident(Elf *e, size_t *sz)
-{
-
-	if (e == NULL) {
-		LIBELF_SET_ERROR(ARGUMENT, 0);
-		goto error;
-	}
-
-	if (e->e_cmd == ELF_C_WRITE && e->e_rawfile == NULL) {
-		LIBELF_SET_ERROR(SEQUENCE, 0);
-		goto error;
-	}
-
-	assert(e->e_kind != ELF_K_AR || e->e_cmd == ELF_C_READ);
-
-	if (sz) {
-		if (e->e_kind == ELF_K_AR)
-			*sz = SARMAG;
-		else if (e->e_kind == ELF_K_ELF)
-			*sz = EI_NIDENT;
-		else
-			*sz = (size_t) e->e_rawsize;
-	}
-
-	return ((char *) e->e_rawfile);
-
- error:
-	if (sz)
-		*sz = 0;
-	return (NULL);
-}
+#endif					/* __MLX5_TLS_H__ */
