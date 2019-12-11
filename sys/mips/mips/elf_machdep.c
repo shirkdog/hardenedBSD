@@ -83,9 +83,9 @@ static struct sysentvec elf_freebsd_sysvec = {
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
 #ifdef __mips_n64
-	.sv_flags	= SV_ABI_FREEBSD | SV_LP64 | SV_ASLR,
+	.sv_flags	= SV_ABI_FREEBSD | SV_LP64,
 #else
-	.sv_flags	= SV_ABI_FREEBSD | SV_ILP32 | SV_ASLR,
+	.sv_flags	= SV_ABI_FREEBSD | SV_ILP32,
 #endif
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
